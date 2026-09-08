@@ -9,14 +9,23 @@ from __future__ import annotations
 
 import logging
 
+from satquery.artifacts import render_mask_overlay
 from satquery.config import get_settings
 from satquery.geospatial.raster import (
     analyze_spatial_properties,
     get_pixel_space_info,
     get_raster_metadata,
 )
+from satquery.graph.geometry import change_mask
 from satquery.graph.llm import invoke_text
-from satquery.graph.nodes._common import append_result, as_text, first_image, next_evidence_id, trace
+from satquery.graph.nodes._common import (
+    append_result,
+    as_text,
+    first_image,
+    next_evidence_id,
+    trace,
+    with_artifact,
+)
 from satquery.graph.prompts import (
     CROSS_MODAL_REASONING_PROMPT,
     CHANGE_DETECTION_PROMPT,
@@ -38,6 +47,7 @@ _TASK_TO_NODE = {
     "change_detection": "change_detection",
     "cross_modal_analysis": "cross_modal",
     "geo_spatial_analysis": "geo_spatial",
+    "grounding_analysis": "grounding",
     "retrieval": "retrieval",
 }
 
@@ -97,7 +107,7 @@ def image_analysis_node(state: SatQueryState) -> dict:
     image = state.get("optical_image") or state.get("sar_image") or first_image(state)
     if image is None:
         return _failed(state, "image_analysis_agent", "image_analysis", "No image was provided.")
-
+    print(image)
     prompt = f"{IMAGE_ANALYSIS_PROMPT}\n\nUSER QUESTION:\n{state.get('query', '')}"
     try:
         finding = get_vlm().caption(image, prompt, max_new_tokens=300)
@@ -126,6 +136,41 @@ def image_analysis_node(state: SatQueryState) -> dict:
 # --------------------------------------------------------------------------- #
 # Bi-temporal change                                                           #
 # --------------------------------------------------------------------------- #
+def _build_change_map(t1, t2) -> tuple[dict, str | None]:
+    """Classical pixel-difference change map (no model). Returns (stats, overlay_b64|None)."""
+    try:
+        result = change_mask(t1, t2)
+    except Exception:  # noqa: BLE001
+        logger.exception("change map generation failed")
+        return {}, None
+    stats = {
+        "changed_fraction": result["changed_fraction"],
+        "change_bbox": result["change_bbox"],
+        "method": "pixel_difference",
+        "threshold": result["threshold"],
+    }
+    overlay = None
+    if result["change_bbox"] is not None:
+        try:
+            overlay = render_mask_overlay(t2, result["mask"], bbox=result["change_bbox"])
+        except Exception:  # noqa: BLE001
+            logger.exception("change overlay render failed")
+    return stats, overlay
+
+
+def _change_result(state: SatQueryState, evidence: dict, overlay: str | None) -> dict:
+    result = _completed(state, "change_detection", evidence)
+    if overlay:
+        result["artifacts"] = with_artifact(
+            state,
+            artifact_id=f"{evidence['evidence_id']}_change_map",
+            kind="change_map",
+            produced_by="change_detection_agent",
+            image_b64=overlay,
+        )
+    return result
+
+
 def change_detection_node(state: SatQueryState) -> dict:
     t1, t2 = _resolve_pair(state, "image_t1", "image_t2")
     if not t1 or not t2:
@@ -133,6 +178,11 @@ def change_detection_node(state: SatQueryState) -> dict:
             state, "change_detection_agent", "change_detection",
             f"Change detection needs two images; {state.get('image_count', 0)} supplied.",
         )
+
+    # Spatial "where" — deterministic, works even if the VLM is unavailable.
+    stats, overlay = _build_change_map(t1, t2)
+    pct = None if not stats else round(stats["changed_fraction"] * 100, 1)
+
     try:
         finding = get_vlm().compare(
             t1, t2, CHANGE_DETECTION_PROMPT,
@@ -140,26 +190,44 @@ def change_detection_node(state: SatQueryState) -> dict:
             label_b="IMAGE 2 - LATER OBSERVATION",
             max_new_tokens=220,
         )
-    except VLMUnavailableError as exc:
-        return _failed(state, "change_detection_agent", "change_detection", str(exc), "vlm unavailable")
     except Exception as exc:  # noqa: BLE001
-        logger.exception("change_detection VLM error")
-        return _failed(
-            state, "change_detection_agent", "change_detection",
-            f"Vision model error: {exc}", "vlm error",
-        )
+        if not isinstance(exc, VLMUnavailableError):
+            logger.exception("change_detection VLM error")
+        # No textual interpretation, but the pixel-difference map still answers "where".
+        if pct is not None:
+            evidence = {
+                "evidence_id": next_evidence_id(state, "change_detection"),
+                "agent": "change_detection_agent",
+                "task": "change_detection",
+                "finding": (
+                    f"Pixel-difference change detection: about {pct}% of the scene changed, "
+                    "concentrated within the highlighted region. "
+                    f"(Textual change interpretation unavailable: {exc})"
+                ),
+                "confidence": 0.5,
+                "change_stats": stats,
+                "visual_evidence": ["change_map"],
+                "parameters": {"method": "pixel_difference"},
+            }
+            return _change_result(state, evidence, overlay)
+        reason = "vlm unavailable" if isinstance(exc, VLMUnavailableError) else "vlm error"
+        return _failed(state, "change_detection_agent", "change_detection", str(exc), reason)
 
+    finding_text = finding
+    if pct is not None:
+        finding_text = f"{finding}\n\nPixel-difference check: ~{pct}% of the scene changed."
     evidence = {
         "evidence_id": next_evidence_id(state, "change_detection"),
         "agent": "change_detection_agent",
         "task": "change_detection",
         "model": get_settings().vlm_model_id,
-        "finding": finding,
+        "finding": finding_text,
         "confidence": 0.75,
-        "visual_evidence": ["image_t1", "image_t2"],
+        "change_stats": stats or None,
+        "visual_evidence": ["image_t1", "image_t2"] + (["change_map"] if overlay else []),
         "parameters": {"max_new_tokens": 220},
     }
-    return _completed(state, "change_detection", evidence)
+    return _change_result(state, evidence, overlay)
 
 
 # --------------------------------------------------------------------------- #

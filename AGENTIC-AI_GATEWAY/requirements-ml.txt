@@ -15,3 +15,6 @@ qwen-vl-utils>=0.0.8
 # Pre-quantized (4-bit / 8-bit bitsandbytes) checkpoints ALSO need this,
 # and bitsandbytes 4-bit inference requires an NVIDIA GPU:
 # bitsandbytes>=0.43
+
+# SEGMENTER_BACKEND=sam (grounding mask refinement) uses transformers' SamModel
+# above — no extra package. Grounding works without it (box overlay only).

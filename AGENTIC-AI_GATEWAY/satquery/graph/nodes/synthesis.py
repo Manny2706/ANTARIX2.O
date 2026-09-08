@@ -45,6 +45,14 @@ def answer_synthesis_node(state: SatQueryState) -> dict:
             ),
         }
 
+    artifacts = state.get("artifacts") or []
+    if artifacts:
+        kinds = ", ".join(sorted({a.get("kind", "artifact") for a in artifacts}))
+        evidence_text += (
+            f"\n\n[Visual evidence attached to the response ({kinds}). "
+            "Refer the user to it for the exact location.]"
+        )
+
     try:
         confidence = float(state.get("confidence") or 0.0)
     except (TypeError, ValueError):

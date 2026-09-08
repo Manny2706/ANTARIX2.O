@@ -9,11 +9,10 @@ const httpServer = http.createServer(app)
 initiateSocketConnection(httpServer)
 
 
-
-
-connectDB().
-    then(() => {
-        app.listen(process.env.PORT, () => {
-            console.log(`Server is running on port ${process.env.PORT}`)
-        })
+connectDB().then(() => {
+    httpServer.listen(process.env.PORT, () => {
+        console.log(
+            `Server is running on port ${process.env.PORT}`
+        )
     })
+})

@@ -6,7 +6,7 @@ Complete manual/automated test pass for every endpoint and feature.
 
 | File | Purpose |
 |------|---------|
-| `SatQuery.postman_collection.json` | 22 requests across 6 folders, 79 assertions |
+| `SatQuery.postman_collection.json` | 24 requests across 6 folders, ~87 assertions |
 | `SatQuery.local.postman_environment.json` | `base_url`, `api_key` |
 | `samples/` | `optical1.png`, `sar1.png`, `T1.png`, `T2.png` — ready-to-attach test images |
 
@@ -85,6 +85,8 @@ use.** The labelled fields only tell a specialist which image is which.
 | Cross-modal — labelled optical + SAR | `query` + `optical` + `sar` | `current_task = cross_modal`, `modalities = [optical, sar]` |
 | **Cross-modal — unlabelled `images[]`** | optical/SAR query + 2× `images` | `image_count = 2`, `current_task = cross_modal`, `cross_modal` node ran |
 | Geo-spatial | geometry query + `optical` | `current_task = geo_spatial`, `finding.pixel_space.width_pixels` numeric |
+| **Grounding** | "highlight the water body" + `optical` | `current_task = grounding`; when the VLM is live: `boxes[]` + a `grounding_overlay` base64 artifact |
+| **Change detection — "where"** | "what changed and where" + T1/T2 | `current_task = change_detection`; `evidence[-1].change_stats` + a `change_map` base64 artifact (works even with VLM disabled) |
 | Retrieval — domain knowledge | "explain in general …" + `optical` | 200 + `final_answer`; task `retrieval` **or** `image_analysis` |
 | Validation error — no image | `query` referencing an image, no file | **422**, body mentions "image" |
 | Bounded retries — max_retries=1 | `query` + `optical` + `max_retries=1` | `retry_count ≤ 1` |

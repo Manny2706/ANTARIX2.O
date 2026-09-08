@@ -6,6 +6,7 @@ import { SocketSendMessage } from "../types/socket.types"
 export let io: Server
 const initiateSocketConnection = async (httpServer: HttpServer) => {
     io = new Server(httpServer, {
+        maxHttpBufferSize: 1e7,
         cors: {
             origin: "*",
             methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -16,31 +17,27 @@ const initiateSocketConnection = async (httpServer: HttpServer) => {
 
         //Message Event
         socket.on("message:send", async (data: SocketSendMessage) => {
+
             try {
-                const { key, conversationId, message, image } = data
+                const { key, conversationId, userId, message, images } = data
                 if (!key || !message) {
                     return socket.emit("error", "Invalid message data")
                 }
-
                 if (key !== process.env.SOCKET_KEY) {
                     socket.emit("message:error", {
                         message: "Unauthorized",
                     });
                     return
                 }
-                if (!conversationId) {
-                    socket.emit("message:error", {
-                        message: "Conversation ID is required",
-                    })
-                    return
-                }
+
                 console.log(" Key verified")
                 console.log(`the message is : ${message} and the key is ${key}`)
 
                 await handleMessageSend(socket, {
                     conversationId,
+                    userId,
                     message,
-                    image,
+                    images,
                 })
             } catch (error) {
                 console.log("ERROR: Error in message send", error)
@@ -56,7 +53,5 @@ const initiateSocketConnection = async (httpServer: HttpServer) => {
     })
     return io
 }
-
-
 
 export default initiateSocketConnection

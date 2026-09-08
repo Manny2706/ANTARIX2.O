@@ -1,9 +1,130 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './Dashboard.css';
+
+const HISTORY_URL = 'https://sat-query-ai-ten.vercel.app/api/history/conversations';
+
+const formatDate = (date) => {
+  if (!date) return 'Unknown date';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date));
+};
+
+const normalizeConversation = (conversation) => {
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+  const latestMessage = [...messages]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  const assistantMessage = messages.find((message) => message.role === 'ASSISTANT');
+  const metadata = assistantMessage?.metadata || {};
+  const mode = metadata.image_count > 1 || metadata.temporal_mode === 'multi_image'
+    ? 'Bi-Temporal'
+    : metadata.modalities?.length
+      ? 'Optical + SAR'
+      : 'Single Image';
+  const confidence = metadata.confidence == null
+    ? null
+    : `${Math.round(metadata.confidence <= 1 ? metadata.confidence * 100 : metadata.confidence)}%`;
+
+  return {
+    id: conversation.id,
+    title: conversation.title || latestMessage?.content || 'Untitled analysis',
+    date: latestMessage?.createdAt,
+    mode,
+    confidence,
+    status: assistantMessage ? 'COMPLETE' : 'PENDING',
+  };
+};
+
+function SatqueryMark() {
+  return (
+    <svg viewBox="0 0 47 46" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <circle cx="23.5" cy="23" r="21"></circle>
+      <ellipse cx="23.5" cy="23" rx="21" ry="6" transform="rotate(-25 23.5 23)"></ellipse>
+      <circle cx="23.5" cy="23" r="3.5" fill="#00B4D8" stroke="none"></circle>
+    </svg>
+  );
+}
 
 export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [theme, setTheme] = useState('light');
+  const [conversations, setConversations] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyFilter, setHistoryFilter] = useState('ALL');
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(HISTORY_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`History request failed (${response.status})`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (!payload.success || !Array.isArray(payload.data)) {
+          throw new Error('History response had an unexpected format');
+        }
+        setConversations(payload.data.map(normalizeConversation));
+        setHistoryError('');
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') setHistoryError('Unable to load analysis history.');
+      })
+      .finally(() => setHistoryLoading(false));
+
+    return () => controller.abort();
+  }, []);
+
+  const filteredConversations = useMemo(() => {
+    const search = historySearch.trim().toLowerCase();
+    return conversations.filter((conversation) => {
+      const matchesSearch = !search || conversation.title.toLowerCase().includes(search);
+      const matchesFilter = historyFilter === 'ALL'
+        || conversation.mode.toUpperCase() === historyFilter
+        || conversation.status === historyFilter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [conversations, historyFilter, historySearch]);
+
+  const renderHistoryState = (emptyText = 'No analyses found.') => {
+    if (historyLoading) return <div className="history-state">Loading analysis history...</div>;
+    if (historyError) return <div className="history-state error-state">{historyError}</div>;
+    if (!filteredConversations.length) return <div className="history-state">{emptyText}</div>;
+    return null;
+  };
+
+  const renderAnalysisCard = (analysis, isHistory = false) => (
+    <div className={`analysis-card ${isHistory ? 'history-card' : ''}`} key={analysis.id}>
+      <div className="analysis-card-left">
+        <div className="analysis-image satquery-card-logo">
+          <SatqueryMark />
+        </div>
+        <div className="analysis-details">
+          <div className="analysis-title">{analysis.title}</div>
+          <div className="analysis-meta">
+            <span className="analysis-date">{formatDate(analysis.date)}</span>
+            <span className="analysis-tag">{analysis.mode}</span>
+          </div>
+        </div>
+      </div>
+      <div className="analysis-card-right">
+        <div className="analysis-confidence">
+          <div className="conf-value">{analysis.confidence || '—'}</div>
+          <div className="conf-label">CONFIDENCE</div>
+        </div>
+        <div className="analysis-status">
+          <div className={`status-pill ${analysis.status === 'FAILED' ? 'failed-pill' : ''}`}>
+            {analysis.status}
+          </div>
+          <div className="view-link">{isHistory ? 'OPEN +' : 'VIEW'}</div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="dashboard-container">
@@ -86,7 +207,7 @@ export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
           <>
             <header className="dashboard-header">
               <h1>Good Morning.</h1>
-              <p>What would you like to analze today?</p>
+              <p>What would you like to analyze today?</p>
             </header>
 
             <div className="new-analysis-banner" onClick={onNewAnalysis}>
@@ -94,7 +215,7 @@ export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
                 <div className="banner-icon">+</div>
                 <div className="banner-text">
                   <div className="banner-title">New Analysis</div>
-                  <div className="banner-sub">Upload satellite imagery and ask narural-language question</div>
+                  <div className="banner-sub">Upload satellite imagery and ask a natural-language question</div>
                 </div>
               </div>
               <div className="banner-right">START &gt;</div>
@@ -102,19 +223,23 @@ export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
 
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-value">24</div>
+                <div className="stat-value">{conversations.length}</div>
                 <div className="stat-label">ANALYSES</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">130</div>
+                <div className="stat-value">{conversations.reduce((total, item) => total + (item.mode === 'Bi-Temporal' ? 2 : 1), 0)}</div>
                 <div className="stat-label">IMAGES PROCESSED</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">91%</div>
+                <div className="stat-value">
+                  {conversations.length
+                    ? `${Math.round(conversations.reduce((total, item) => total + parseInt(item.confidence || '0', 10), 0) / conversations.length)}%`
+                    : '—'}
+                </div>
                 <div className="stat-label">AVG CONFIDENCE</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">17</div>
+                <div className="stat-value">{conversations.filter((item) => item.status === 'COMPLETE').length}</div>
                 <div className="stat-label">REPORTS</div>
               </div>
             </div>
@@ -122,33 +247,7 @@ export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
             <div className="recent-analysis-section">
               <h2>Recent Analysis</h2>
               <div className="analysis-list">
-                {[1, 2, 3].map((item, index) => (
-                  <div className="analysis-card" key={index}>
-                    <div className="analysis-card-left">
-                      <div className="analysis-image"></div>
-                      <div className="analysis-details">
-                        <div className="analysis-title">"Identify changes in urban expances between 2023 and 2026"</div>
-                        <div className="analysis-meta">
-                          <span className="analysis-date">03 sep 2026</span>
-                          <span className="analysis-tag">{index === 1 ? 'Single Image' : 'bi-Temporal'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="analysis-card-right">
-                      <div className="analysis-confidence">
-                        <div className="conf-value">{index === 1 ? '86%' : index === 2 ? '92%' : '94%'}</div>
-                        <div className="conf-label">CONFIDENCE</div>
-                      </div>
-                      <div className="analysis-status">
-                        <div className="status-pill">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          COMPLETE
-                        </div>
-                        <div className="view-link">VIEW</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {renderHistoryState('No recent analyses found.') || filteredConversations.slice(0, 3).map((analysis) => renderAnalysisCard(analysis))}
               </div>
             </div>
           </>
@@ -157,125 +256,33 @@ export default function Dashboard({ initialTab = 'dashboard', onNewAnalysis }) {
         {activeTab === 'history' && (
           <div className="history-tab">
             <h1 className="history-title">Analysis History</h1>
-            
+
             <div className="history-filters">
               <div className="history-search">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A9B1B1" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <input type="text" placeholder="Search analyses..." />
+                <input
+                  type="text"
+                  placeholder="Search analyses..."
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.target.value)}
+                />
               </div>
-              <div className="filter-pill active-pill">ALL</div>
-              <div className="filter-pill">SINGLE IMAGE</div>
-              <div className="filter-pill">BI-TEMPORAL</div>
-              <div className="filter-pill">OPTICAL + SAR</div>
-              <div className="filter-pill">COMPLETED</div>
-              <div className="filter-pill">FAILED</div>
+              {['ALL', 'SINGLE IMAGE', 'BI-TEMPORAL', 'OPTICAL + SAR', 'COMPLETED', 'FAILED'].map((filter) => (
+                <button
+                  className={`filter-pill ${historyFilter === filter ? 'active-pill' : ''}`}
+                  key={filter}
+                  onClick={() => setHistoryFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
             </div>
 
             <div className="analysis-list history-list">
-              
-              <div className="analysis-card history-card">
-                <div className="analysis-card-left">
-                  <div className="analysis-image"></div>
-                  <div className="analysis-details">
-                    <div className="analysis-title">"Identify changes in urban expansion between 2023 and 2026"</div>
-                    <div className="analysis-meta">
-                      <span className="analysis-date">03 Sep 2026</span>
-                      <span className="analysis-tag">bi-Temporal</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="analysis-card-right">
-                  <div className="analysis-confidence">
-                    <div className="conf-value">94%</div>
-                    <div className="conf-label">CONFIDENCE</div>
-                  </div>
-                  <div className="analysis-status">
-                    <div className="status-pill">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      COMPLETE
-                    </div>
-                    <div className="view-link">OPEN +</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="analysis-card history-card">
-                <div className="analysis-card-left">
-                  <div className="analysis-image"></div>
-                  <div className="analysis-details">
-                    <div className="analysis-title">"Detect water bodies and estimate surface area"</div>
-                    <div className="analysis-meta">
-                      <span className="analysis-date">01 Sep 2026</span>
-                      <span className="analysis-tag">Single Image</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="analysis-card-right">
-                  <div className="analysis-confidence">
-                    <div className="conf-value">88%</div>
-                    <div className="conf-label">CONFIDENCE</div>
-                  </div>
-                  <div className="analysis-status">
-                    <div className="status-pill">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      COMPLETE
-                    </div>
-                    <div className="view-link">OPEN +</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="analysis-card history-card">
-                <div className="analysis-card-left">
-                  <div className="analysis-image"></div>
-                  <div className="analysis-details">
-                    <div className="analysis-title">"Joint optical and SAR classification of agricultural zones"</div>
-                    <div className="analysis-meta">
-                      <span className="analysis-date">29 Aug 2026</span>
-                      <span className="analysis-tag">Optical + SAR</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="analysis-card-right">
-                  <div className="analysis-confidence">
-                    <div className="conf-value">91%</div>
-                    <div className="conf-label">CONFIDENCE</div>
-                  </div>
-                  <div className="analysis-status">
-                    <div className="status-pill">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      COMPLETE
-                    </div>
-                    <div className="view-link">OPEN +</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="analysis-card history-card">
-                <div className="analysis-card-left">
-                  <div className="analysis-image" style={{ filter: 'grayscale(100%) opacity(0.8)' }}></div>
-                  <div className="analysis-details">
-                    <div className="analysis-title">"Describe vegetation cover and land-use in northern region"</div>
-                    <div className="analysis-meta">
-                      <span className="analysis-date">27 Aug 2026</span>
-                      <span className="analysis-tag">Single Image</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="analysis-card-right" style={{ paddingBottom: '16px', alignItems: 'flex-end', justifyContent: 'flex-end', gap: '0' }}>
-                  
-                  <div className="analysis-status">
-                    <div className="status-pill failed-pill">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                      FAILED
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+              {renderHistoryState() || filteredConversations.map((analysis) => renderAnalysisCard(analysis, true))}
             </div>
           </div>
         )}

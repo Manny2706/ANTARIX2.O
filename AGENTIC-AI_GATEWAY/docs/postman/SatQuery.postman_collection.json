@@ -211,6 +211,58 @@
           }
         },
         {
+          "name": "Grounding — highlight a region (box / mask overlay)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const b = pm.response.json();",
+            "pm.test('routed to grounding', () => pm.expect(b.current_task).to.eql('grounding'));",
+            "const g = b.evidence.find(e => e.task === 'grounding_analysis');",
+            "pm.test('grounding specialist produced evidence', () => pm.expect(g).to.be.an('object'));",
+            "if (g && g.status !== 'failed') {",
+            "  pm.test('grounding returns a box + a base64 overlay artifact', () => {",
+            "    pm.expect(g.boxes).to.be.an('array');",
+            "    const ov = (b.artifacts || []).find(a => a.kind === 'grounding_overlay');",
+            "    pm.expect(ov, 'grounding_overlay artifact').to.be.an('object');",
+            "    pm.expect(ov.image_b64).to.match(/^data:image\\/png;base64,/);",
+            "  });",
+            "} else {",
+            "  console.warn('VLM unavailable — grounding degraded; run with VLM_BACKEND=local for the overlay.');",
+            "}"
+          ] } }],
+          "request": {
+            "method": "POST", "header": [],
+            "body": { "mode": "formdata", "formdata": [
+              { "key": "query", "value": "Highlight the water body referred to in the query.", "type": "text" },
+              { "key": "optical", "type": "file", "src": "docs/postman/samples/optical1.png" }
+            ] },
+            "url": { "raw": "{{base_url}}/api/v1/analyze", "host": ["{{base_url}}"], "path": ["api","v1","analyze"] }
+          }
+        },
+        {
+          "name": "Change detection — 'where' (change map)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const b = pm.response.json();",
+            "pm.test('routed to change_detection', () => pm.expect(b.current_task).to.eql('change_detection'));",
+            "const c = b.evidence.find(e => e.task === 'change_detection');",
+            "pm.test('change_stats present', () => { pm.expect(c).to.be.an('object'); pm.expect(c.change_stats).to.be.an('object'); });",
+            "pm.test('change map artifact returned', () => {",
+            "  const cm = (b.artifacts || []).find(a => a.kind === 'change_map');",
+            "  pm.expect(cm, 'change_map artifact').to.be.an('object');",
+            "  pm.expect(cm.image_b64).to.match(/^data:image\\/png;base64,/);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST", "header": [],
+            "body": { "mode": "formdata", "formdata": [
+              { "key": "query", "value": "What changed between these two dates, and where did the change occur?", "type": "text" },
+              { "key": "image_t1", "type": "file", "src": "docs/postman/samples/T1.png" },
+              { "key": "image_t2", "type": "file", "src": "docs/postman/samples/T2.png" }
+            ] },
+            "url": { "raw": "{{base_url}}/api/v1/analyze", "host": ["{{base_url}}"], "path": ["api","v1","analyze"] }
+          }
+        },
+        {
           "name": "Retrieval — domain knowledge",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('200 OK', () => pm.response.to.have.status(200));",

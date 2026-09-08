@@ -125,6 +125,13 @@ class LocalQwen2VLBackend:
         ]
         return self._generate(messages, [img], max_new_tokens)
 
+    def ground(self, image, phrase, *, max_new_tokens=None) -> str:
+        """Text-guided region grounding — return raw model text containing a box."""
+        from satquery.graph.prompts import GROUNDING_PROMPT
+
+        prompt = f"{GROUNDING_PROMPT}\n\nQUERY:\n{phrase}"
+        return self.caption(image, prompt, max_new_tokens=max_new_tokens or 128)
+
     def compare(
         self,
         image_a,

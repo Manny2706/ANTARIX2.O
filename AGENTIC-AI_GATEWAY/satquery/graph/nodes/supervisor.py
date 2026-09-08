@@ -24,12 +24,20 @@ from satquery.graph.state import SatQueryState
 
 logger = logging.getLogger(__name__)
 
-SPECIALISTS = ("image_analysis", "change_detection", "cross_modal", "geo_spatial", "retrieval")
+SPECIALISTS = (
+    "image_analysis",
+    "change_detection",
+    "cross_modal",
+    "grounding",
+    "geo_spatial",
+    "retrieval",
+)
 
 _RETRY_MAP = {
     "IMAGE_ANALYSIS": "image_analysis",
     "CHANGE_DETECTION": "change_detection",
     "CROSS_MODAL": "cross_modal",
+    "GROUNDING": "grounding",
     "GEO_SPATIAL": "geo_spatial",
     "RETRIEVAL": "retrieval",
     "NONE": "image_analysis",
@@ -44,6 +52,11 @@ _CROSS_KW = (
     "optical and sar", "sar and optical", "optical + sar", "optical/sar",
     "cross modal", "cross-modal", "both modalities", "compare modalities",
     "multimodal", "multi-modal", "radar and optical", "optical vs sar",
+)
+_GROUND_KW = (
+    "highlight", "locate", "where is", "where's", "point to", "point out",
+    "mark the", "show me the", "outline the", "outline of", "segment the",
+    "find the", "draw a box", "bounding box around", "pinpoint",
 )
 _GEO_KW = (
     "coordinate", "crs", "spatial bound", "geographic bound", "bounding box",
@@ -70,7 +83,7 @@ def _feasible(task: str, state: SatQueryState) -> str:
     n = _n_images(state)
     if task in ("change_detection", "cross_modal") and n < 2:
         return "image_analysis" if n >= 1 else "retrieval"
-    if task in ("image_analysis", "geo_spatial") and n < 1:
+    if task in ("image_analysis", "geo_spatial", "grounding") and n < 1:
         return "retrieval"
     if task not in SPECIALISTS:
         return "image_analysis" if n >= 1 else "retrieval"
@@ -112,6 +125,7 @@ def _llm_classify(state: SatQueryState) -> str:
     for key, task in (
         ("CHANGE_DETECTION", "change_detection"),
         ("CROSS_MODAL", "cross_modal"),
+        ("GROUNDING", "grounding"),
         ("GEO_SPATIAL", "geo_spatial"),
         ("RETRIEVAL", "retrieval"),
         ("IMAGE_ANALYSIS", "image_analysis"),
@@ -127,6 +141,7 @@ def classify_task(state: SatQueryState) -> str:
 
     wants_change = any(k in query for k in _CHANGE_KW)
     wants_cross = any(k in query for k in _CROSS_KW)
+    wants_ground = any(k in query for k in _GROUND_KW)
     wants_geo = any(k in query for k in _GEO_KW)
 
     # 1. Explicit, unambiguous intent — only if the images can support it.
@@ -134,6 +149,8 @@ def classify_task(state: SatQueryState) -> str:
         return "change_detection"
     if wants_cross and n >= 2:
         return "cross_modal"
+    if wants_ground and n >= 1:
+        return "grounding"
     if wants_geo and n >= 1:
         return "geo_spatial"
 

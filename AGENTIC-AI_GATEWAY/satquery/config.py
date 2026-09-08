@@ -62,6 +62,18 @@ class Settings(BaseSettings):
     vlm_max_new_tokens: int = 256
     vlm_load_on_startup: bool = False
 
+    # ---------------------------------------------- Grounding / segmentation
+    # sam       -> refine grounding boxes into masks with a SAM checkpoint
+    # disabled  -> grounding returns a box overlay only (no extra model)
+    segmenter_backend: str = "disabled"
+    sam_model_id: str = "facebook/sam-vit-base"
+    sam_device_map: str = "auto"
+
+    # --------------------------------------------------------------- artifacts
+    # Visual evidence (box overlays, change maps) is returned inline as a
+    # base64 PNG data URI; images are downscaled to at most this dimension.
+    artifact_max_dim: int = 1280
+
     # ------------------------------------------------------------------ graph
     default_max_retries: int = 2
     min_confidence: float = 0.75

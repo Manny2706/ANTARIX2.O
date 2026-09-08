@@ -30,6 +30,10 @@ CHANGE_DETECTION
 CROSS_MODAL
 - optical + SAR joint analysis
 
+GROUNDING
+- locate / highlight / point to / outline a specific object or region named in the query
+- "highlight the water body", "where is the airport", "mark the built-up area"
+
 GEO_SPATIAL
 - ROI / spatial reasoning
 - geographic relationships
@@ -44,10 +48,33 @@ Return ONLY one of:
 IMAGE_ANALYSIS
 CHANGE_DETECTION
 CROSS_MODAL
+GROUNDING
 GEO_SPATIAL
 RETRIEVAL
 
 Do not provide explanations."""
+
+
+# --------------------------------------------------------------------------- #
+# Text-guided region grounding                                                 #
+# --------------------------------------------------------------------------- #
+GROUNDING_PROMPT = """You are the SatQuery Grounding Specialist.
+
+Locate in the image the single object or region the user asks about and return
+its bounding box.
+
+Rules:
+- Return the box for the ONE best-matching region for the query.
+- Coordinates are [x1, y1, x2, y2] as fractions of image width/height in the
+  range 0-1, with the origin at the top-left.
+- If the queried target is not visible, answer exactly: NOT_FOUND
+- Do not invent objects or locations.
+
+Return EXACTLY:
+
+TARGET: <what you located, in a few words>
+BOX: [x1, y1, x2, y2]
+CONFIDENCE: <number between 0 and 1>"""
 
 
 # --------------------------------------------------------------------------- #
@@ -85,9 +112,15 @@ Return ONLY:
 
 FINDING:
 <concise answer to the user's question>
+<answer in human language only no bounding box coordinate is required . Numbers and figures is watnted>
 
 VISUAL_EVIDENCE:
 - <observable evidence>
+- <observable evidence>
+- <observable evidence>
+
+Single lined observationn like river is found , forest is found , etc  >
+
 
 UNCERTAINTY:
 <what cannot be reliably determined>

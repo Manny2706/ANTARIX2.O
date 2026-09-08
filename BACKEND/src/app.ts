@@ -2,7 +2,7 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import authRouter from "./routes/auth.route"
-
+import historyRouter from "./routes/history.route"
 const app = express()
 
 
@@ -33,6 +33,8 @@ app.get("/health", (req, res) => {
 
 // Authentication Routes
 app.use("/api/auth", authRouter)
+// History Routes
+app.use("/api/history", historyRouter)
 
 
-export default app
+export default app

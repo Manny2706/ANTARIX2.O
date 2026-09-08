@@ -17,6 +17,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from satquery.graph.nodes.evidence import evidence_pool_node, verification_node
+from satquery.graph.nodes.grounding import grounding_node
 from satquery.graph.nodes.preprocessing import context_manager, input_validation
 from satquery.graph.nodes.reflection import reflection_node, retry_node
 from satquery.graph.nodes.routers import (
@@ -39,6 +40,7 @@ _SPECIALIST_NODES = {
     "image_analysis": image_analysis_node,
     "change_detection": change_detection_node,
     "cross_modal": cross_modal_agent_node,
+    "grounding": grounding_node,
     "geo_spatial": geo_spatial_agent_node,
     "retrieval": retrieval_node,
 }

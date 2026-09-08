@@ -75,6 +75,8 @@ async def analyze_stream(
     Events: ``start``, ``progress`` (one per graph node, carrying its trace
     entry), ``result`` (the full ``AnalyzeResult``), ``error``.
     """
+    print("Collecting upload inputs...")
+    print(f"optical: {optical}, sar: {sar}, image_t1: {image_t1}, image_t2: {image_t2}, images: {images}")
     kwargs = await collect_upload_inputs(
         optical=optical, sar=sar, image_t1=image_t1, image_t2=image_t2, images=images
     )
@@ -83,7 +85,8 @@ async def analyze_stream(
             status_code=422,
             detail="Provide at least one image file (optical, sar, image_t1, image_t2 or images).",
         )
-
+    print("Starting analysis stream...")
+    print(kwargs)
     def _events() -> Iterator[dict]:
         for event in stream_analysis(query=query, max_retries=max_retries, **kwargs):
             kind = event.get("type")
@@ -95,7 +98,8 @@ async def analyze_stream(
                 yield {"event": "error", "data": {"detail": event["detail"]}}
             else:  # "start"
                 yield {"event": "start", "data": event.get("state", {})}
-
+    print("Streaming analysis events...")
+    print(kwargs)
     return StreamingResponse(
         sse_from_sync(_events),
         media_type="text/event-stream",

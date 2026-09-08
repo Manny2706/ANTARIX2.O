@@ -42,5 +42,12 @@ class VLMBackend(Protocol):
     ) -> str:
         """Answer ``prompt`` about a pair of images (change / cross-modal)."""
 
+    def ground(self, image: ImageInput, phrase: str, *, max_new_tokens: int | None = None) -> str:
+        """Text-guided region grounding — raw model text containing a bounding box.
+
+        Optional: the grounding node falls back to ``caption`` with the grounding
+        prompt for backends that do not implement this.
+        """
+
     def health(self) -> dict[str, Any]:
         """Lightweight status for the ``/api/v1/status`` endpoint."""

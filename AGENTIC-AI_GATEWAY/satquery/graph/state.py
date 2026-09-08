@@ -42,6 +42,9 @@ class SatQueryState(TypedDict, total=False):
     needs_reanalysis: bool
     retry_count: int
 
+    # --- spatial / visual evidence ----------------------------------------- -
+    artifacts: list[dict[str, Any]]     # {artifact_id, kind, produced_by, image_b64}
+
     # --- output -----------------------------------------------------------  -
     execution_trace: list[Any]
     final_answer: str

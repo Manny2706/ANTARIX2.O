@@ -57,6 +57,8 @@ def evidence_pool_node(state: SatQueryState) -> dict:
             "status": item.get("status", "ok"),
             "visual_evidence": item.get("visual_evidence", []),
             "parameters": item.get("parameters", {}),
+            "boxes": item.get("boxes"),
+            "change_stats": item.get("change_stats"),
             "raw_optical_analysis": item.get("raw_optical_analysis"),
             "raw_sar_analysis": item.get("raw_sar_analysis"),
         }
@@ -83,8 +85,8 @@ def verification_node(state: SatQueryState) -> dict:
     latest = evidence[-1]
     task = latest.get("task", "image_analysis")
 
-    # Deterministic tool output — trust as-is.
-    if task == "geo_spatial_analysis":
+    # Deterministic / spatial tool output — trust as-is, no LLM verification.
+    if task in ("geo_spatial_analysis", "grounding_analysis"):
         confidence = float(latest.get("confidence", 0.95))
         verified = evidence[:-1] + [
             {

@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
 _DECISION_RE = re.compile(r"DECISION:\s*(VALIDATED|NEEDS_ANALYSIS)", re.IGNORECASE)
 _CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*(0(?:\.\d+)?|1(?:\.0+)?)", re.IGNORECASE)
 _ACTION_RE = re.compile(
-    r"REQUIRED_ACTION:\s*(IMAGE_ANALYSIS|CHANGE_DETECTION|CROSS_MODAL|GEO_SPATIAL|RETRIEVAL|NONE)",
+    r"REQUIRED_ACTION:\s*(IMAGE_ANALYSIS|CHANGE_DETECTION|CROSS_MODAL|GROUNDING|GEO_SPATIAL|RETRIEVAL|NONE)",
     re.IGNORECASE,
 )
 
 _CHANGE_WORDS = ("change", "changed", "difference", "differences", "before and after", "temporal", "time series")
+_GROUND_WORDS = ("highlight", "locate", "where is", "point to", "mark the", "outline the", "segment the", "pinpoint")
 _GEO_WORDS = (
     "coordinates", "coordinate", "crs", "spatial bounds", "geographic bounds", "area",
     "distance", "resolution", "geospatial", "geo-spatial",
@@ -49,6 +50,9 @@ def determine_required_action(state: SatQueryState, reflection_text: str) -> str
 
     if any(word in query for word in _CHANGE_WORDS) and n_images >= 2:
         return "CHANGE_DETECTION"
+
+    if any(word in query for word in _GROUND_WORDS) and n_images >= 1:
+        return "GROUNDING"
 
     if any(word in query for word in _GEO_WORDS) and n_images >= 1:
         return "GEO_SPATIAL"

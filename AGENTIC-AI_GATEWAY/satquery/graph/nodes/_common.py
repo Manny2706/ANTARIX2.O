@@ -32,6 +32,13 @@ def first_image(state: SatQueryState) -> Any:
         if state.get(key):
             return state[key]
     images = state.get("images") or []
+    # Return the first image first time  , then the second image next time and so on. If no images are present, return None.
+    if not images:
+        return None
+    if state.get("evidence") and (len(state.get("evidence")) == 1 or len(state.get("evidence", [])) == 3) and len(images) > 0:
+        return images[1]
+    elif state.get("evidence") is None and len(images) > 0:
+        return images[0]
     return images[0] if images else None
 
 
@@ -41,3 +48,22 @@ def has_any_image(state: SatQueryState) -> bool:
 
 def next_evidence_id(state: SatQueryState, prefix: str) -> str:
     return f"{prefix}_{len(state.get('agent_results', [])) + 1}"
+
+
+def with_artifact(
+    state: SatQueryState,
+    *,
+    artifact_id: str,
+    kind: str,
+    produced_by: str,
+    image_b64: str,
+) -> list[Any]:
+    """Return the artifacts list with a new visual-evidence entry appended."""
+    return list(state.get("artifacts", [])) + [
+        {
+            "artifact_id": artifact_id,
+            "kind": kind,
+            "produced_by": produced_by,
+            "image_b64": image_b64,
+        }
+    ]

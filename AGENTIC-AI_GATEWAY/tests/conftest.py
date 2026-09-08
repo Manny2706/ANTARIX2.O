@@ -38,6 +38,29 @@ class FakeVLM:
             "CONFIDENCE:\n0.6"
         )
 
+    def ground(self, image, phrase, *, max_new_tokens=None) -> str:
+        self.calls.append(("ground", str(phrase)[:60]))
+        return "TARGET: water body\nBOX: [0.12, 0.30, 0.48, 0.86]\nCONFIDENCE: 0.7"
+
+    def health(self) -> dict:
+        return {"backend": self.name, "loaded": True}
+
+
+class FakeSegmenter:
+    name = "fake-sam"
+
+    def segment_box(self, image, box):
+        from PIL import Image as _Image
+        from PIL import ImageDraw as _ImageDraw
+
+        with _Image.open(image) as im:
+            width, height = im.size
+        mask = _Image.new("L", (width, height), 0)
+        _ImageDraw.Draw(mask).ellipse(
+            [box[0] * width, box[1] * height, box[2] * width, box[3] * height], fill=255
+        )
+        return mask
+
     def health(self) -> dict:
         return {"backend": self.name, "loaded": True}
 
@@ -78,10 +101,12 @@ def wire_stubs(monkeypatch, tmp_path):
     from satquery.config import reload_settings
     from satquery.graph import reset_graph
     from satquery.graph.llm import set_llm_text_override
+    from satquery.segmentation import reset_segmenter
     from satquery.vlm import reset_vlm, set_vlm
 
     reload_settings()
     reset_graph()
+    reset_segmenter()
     set_llm_text_override(fake_llm_text)
     set_vlm(FakeVLM())
 
@@ -89,6 +114,7 @@ def wire_stubs(monkeypatch, tmp_path):
 
     set_llm_text_override(None)
     reset_vlm()
+    reset_segmenter()
     reset_graph()
     reload_settings()
 

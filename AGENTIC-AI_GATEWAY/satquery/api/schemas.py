@@ -16,6 +16,15 @@ class EvidenceItem(BaseModel):
     confidence: float = 0.0
     status: str = "ok"
     visual_evidence: list[str] = Field(default_factory=list)
+    boxes: list[list[float]] | None = None      # grounding: [[x1,y1,x2,y2], ...] in [0,1]
+    change_stats: dict[str, Any] | None = None  # change_detection: changed_fraction, change_bbox
+
+
+class ArtifactRef(BaseModel):
+    artifact_id: str
+    kind: str                                   # grounding_overlay | change_map
+    produced_by: str | None = None
+    image_b64: str | None = None                # data:image/png;base64,...
 
 
 class AnalyzeResult(BaseModel):
@@ -31,6 +40,7 @@ class AnalyzeResult(BaseModel):
     retry_count: int = 0
     reflection: dict[str, Any] | None = None
     evidence: list[EvidenceItem] = Field(default_factory=list)
+    artifacts: list[ArtifactRef] = Field(default_factory=list)
     execution_trace: list[Any] = Field(default_factory=list)
     duration_seconds: float | None = None
 
@@ -41,6 +51,11 @@ class AnalyzeResult(BaseModel):
             data = {k: v for k, v in raw.items() if k in EvidenceItem.model_fields}
             data["confidence"] = float(data.get("confidence") or 0.0)
             evidence.append(EvidenceItem(**data))
+
+        artifacts = [
+            ArtifactRef(**{k: v for k, v in raw.items() if k in ArtifactRef.model_fields})
+            for raw in state.get("artifacts", []) or []
+        ]
 
         try:
             confidence = float(state.get("confidence") or 0.0)
@@ -60,6 +75,7 @@ class AnalyzeResult(BaseModel):
             retry_count=state.get("retry_count", 0),
             reflection=state.get("reflection"),
             evidence=evidence,
+            artifacts=artifacts,
             execution_trace=state.get("execution_trace", []),
             duration_seconds=state.get("duration_seconds"),
         )

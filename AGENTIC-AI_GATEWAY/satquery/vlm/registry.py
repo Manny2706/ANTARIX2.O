@@ -32,6 +32,7 @@ class DisabledVLM:
 
     caption = _unavailable
     compare = _unavailable
+    ground = _unavailable
 
     def health(self) -> dict:
         return {"backend": self.name, "loaded": False}

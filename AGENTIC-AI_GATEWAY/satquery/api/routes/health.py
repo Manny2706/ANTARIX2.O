@@ -11,6 +11,7 @@ from satquery import __version__
 from satquery.config import get_settings
 from satquery.graph.builder import get_graph
 from satquery.graph.llm import describe_model_chain
+from satquery.segmentation import get_segmenter
 from satquery.vlm import get_vlm
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,11 @@ async def status() -> dict:
         vlm_health = {"error": str(exc)}
 
     try:
+        segmenter_health = get_segmenter().health()
+    except Exception as exc:  # noqa: BLE001
+        segmenter_health = {"error": str(exc)}
+
+    try:
         nodes = sorted(get_graph().get_graph().nodes)
     except Exception:  # noqa: BLE001
         nodes = []
@@ -43,6 +49,7 @@ async def status() -> dict:
             "fallback_chain": describe_model_chain(),
         },
         "vlm": vlm_health,
+        "segmenter": segmenter_health,
         "graph_nodes": nodes,
         "auth_required": bool(settings.api_key_list),
         "defaults": {

@@ -43,6 +43,7 @@ def build_initial_state(
         "retry_task": None,
         "agent_results": [],
         "evidence": [],
+        "artifacts": [],
         "execution_trace": [],
         "confidence": 0.0,
         "final_answer": "",
