@@ -16,12 +16,10 @@ socket.on("connect", () => {
     const imagePath1 = path.join(__dirname, "image1.png");
     const imagePath2 = path.join(__dirname, "image2.png");
 
-
     const image1 = fs.readFileSync(imagePath1).toString("base64")
     const image2 = fs.readFileSync(imagePath2).toString("base64")
 
     socket.emit("message:send", {
-
         key: process.env.SOCKET_KEY,
         userId: "70fa21d1-c6c0-4766-a264-9c2d418352c2",
         conversationId: null,
@@ -32,45 +30,18 @@ socket.on("connect", () => {
     console.log("📤 Message sent with 2 images");
 });
 
-
-// socket.on("connect", () => {
-//     console.log("🟢 Connected:", socket.id);
-
-//     const imagePath = path.join(__dirname, "image1.png");
-//     const image = fs.readFileSync(imagePath).toString("base64"); // ✅ base64 string
-
-//     socket.emit("message:send", {
-//         key: process.env.SOCKET_KEY,
-//         userId: "70fa21d1-c6c0-4766-a264-9c2d418352c2",
-//         conversationId: null,
-//         message: "where is the river in the image and how large is it?",
-//         images: [image], // ✅ still an array, just with 1 item
-//     });
-
-//     console.log("📤 Message sent with 1 image");
-// })
-
-let fullStreamedText = "";
-
 socket.on("message:status", (data) => {
-    console.log("📡 STATUS:", data.event, data.data ?? "");
-});
-
-socket.on("message:chunk", (data) => {
-    // print chunks inline, no newline, to simulate a live stream
-    process.stdout.write(data.chunk);
-    fullStreamedText += data.chunk;
+    // data.event is "start" or "progress"
+    // data.data is the node-level payload (e.g. { node: "change_detection", status: "completed" })
+    const node = data.data?.node ?? "";
+    const status = data.data?.status ?? "";
+    console.log(`📡 [${data.event}] ${node} ${status ? "→ " + status : ""}`);
 });
 
 socket.on("message:response", (data) => {
-    console.log("\n\n✅ STREAM COMPLETE");
+    console.log("\n✅ ANALYSIS COMPLETE");
     console.log("🤖 FINAL DB-SAVED RESPONSE:");
     console.log(JSON.stringify(data, null, 2));
-
-    if (fullStreamedText) {
-        console.log("\n📝 Reconstructed from chunks:");
-        console.log(fullStreamedText);
-    }
 
     socket.disconnect();
 });

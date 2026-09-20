@@ -35,7 +35,7 @@ def first_image(state: SatQueryState) -> Any:
     # Return the first image first time  , then the second image next time and so on. If no images are present, return None.
     if not images:
         return None
-    if state.get("evidence") and (len(state.get("evidence")) == 1 or len(state.get("evidence", [])) == 3) and len(images) > 0:
+    if state.get("evidence") and (len(state.get("evidence")) == 1 or len(state.get("evidence", [])) == 3) and len(images) > 1:
         return images[1]
     elif state.get("evidence") is None and len(images) > 0:
         return images[0]
@@ -57,9 +57,18 @@ def with_artifact(
     kind: str,
     produced_by: str,
     image_b64: str,
+    replace_kind: str | None = None,
 ) -> list[Any]:
-    """Return the artifacts list with a new visual-evidence entry appended."""
-    return list(state.get("artifacts", [])) + [
+    """Return the artifacts list with a new visual-evidence entry appended.
+
+    ``replace_kind``, if given, drops any existing artifact of that kind
+    first — a retried specialist's overlay supersedes its own earlier
+    attempt in this turn rather than piling up alongside it.
+    """
+    existing = list(state.get("artifacts", []))
+    if replace_kind is not None:
+        existing = [a for a in existing if a.get("kind") != replace_kind]
+    return existing + [
         {
             "artifact_id": artifact_id,
             "kind": kind,

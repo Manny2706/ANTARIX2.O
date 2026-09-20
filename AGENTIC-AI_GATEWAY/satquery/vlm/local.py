@@ -85,7 +85,16 @@ class LocalQwen2VLBackend:
         return self._model is not None and self._processor is not None
 
     # ------------------------------------------------------------- inference
-    def _generate(self, messages: list[dict], images: list[Any], max_new_tokens: int | None) -> str:
+    def _generate(
+        self,
+        messages: list[dict],
+        images: list[Any],
+        max_new_tokens: int | None,
+        *,
+        do_sample: bool = False,
+        temperature: float | None = None,
+        repetition_penalty: float = 1.15,
+    ) -> str:
         self.load()
         import torch
 
@@ -95,15 +104,17 @@ class LocalQwen2VLBackend:
         inputs = self._processor(
             text=[text], images=images, padding=True, return_tensors="pt"
         )
+        gen_kwargs: dict[str, Any] = {
+            "max_new_tokens": max_new_tokens or self.default_max_new_tokens,
+            "do_sample": do_sample,
+            "repetition_penalty": repetition_penalty,
+        }
+        if do_sample:
+            gen_kwargs["temperature"] = temperature if temperature is not None else 0.4
         with self._infer_lock:
             inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
             with torch.inference_mode():
-                generated = self._model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens or self.default_max_new_tokens,
-                    do_sample=False,
-                    repetition_penalty=1.15,
-                )
+                generated = self._model.generate(**inputs, **gen_kwargs)
             trimmed = [
                 out[len(inp):] for inp, out in zip(inputs["input_ids"], generated)
             ]
@@ -125,12 +136,32 @@ class LocalQwen2VLBackend:
         ]
         return self._generate(messages, [img], max_new_tokens)
 
-    def ground(self, image, phrase, *, max_new_tokens=None) -> str:
-        """Text-guided region grounding — return raw model text containing a box."""
+    def ground(self, image, phrase, *, max_new_tokens=None, do_sample=False) -> str:
+        """Text-guided region grounding — return raw model text containing a box.
+
+        Skips the caption repetition penalty, which otherwise distorts the
+        repeated-digit box coordinates.
+        """
         from satquery.graph.prompts import GROUNDING_PROMPT
 
+        img = to_pil(image)
         prompt = f"{GROUNDING_PROMPT}\n\nQUERY:\n{phrase}"
-        return self.caption(image, prompt, max_new_tokens=max_new_tokens or 128)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": img},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        return self._generate(
+            messages,
+            [img],
+            max_new_tokens or 128,
+            do_sample=do_sample,
+            repetition_penalty=1.0,
+        )
 
     def compare(
         self,

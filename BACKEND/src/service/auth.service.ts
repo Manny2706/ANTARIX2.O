@@ -58,10 +58,30 @@ export const loginUser = async (data: LoginInput): Promise<AuthResult> => {
         fullName: user.fullName,
         email: user.email,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,  
+        updatedAt: user.updatedAt,
     }
 
-    const token = generateToken({ id: user.id, email: user.email })
+    const token = generateToken({
+        id: user.id,
+        email: user.email,
+    })
 
     return { user: safeUser, token }
+}
+export const getCurrentUser = async (userId: string): Promise<UserResponse | null> => {
+    if (!userId) {
+        throw new ApiError("User ID is required", 400)
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            fullName: true,
+            email: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    })
+    return user
 }

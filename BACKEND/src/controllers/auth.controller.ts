@@ -1,6 +1,6 @@
 import { ApiError } from "../utils/ApiError"
-import {Request, Response } from "express"
-import {loginUser,registerUser} from "../service/auth.service"
+import { Request, Response } from "express"
+import { loginUser, registerUser, getCurrentUser } from "../service/auth.service"
 
 export const COOKIE_OPTIONS = {
     httpOnly: true,
@@ -17,6 +17,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             res.status(400).json({
                 success: false,
                 message: "Full name is required",
+            })
+            return
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid email",
             })
             return
         }
@@ -127,6 +135,37 @@ export const logout = async (_req: Request, res: Response): Promise<void> => {
         res.status(500).json({
             success: false,
             message: error.message || "An unexpected error occurred during logout",
+        })
+    }
+}
+
+export const getMe = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.id || req.user?._id
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized: User not authenticated",
+            })
+        }
+
+        const user = await getCurrentUser(userId)
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            })
+        }
+        return res.status(200).json({
+            success: true,
+            message: "User fetched successfully",
+            data: user,
+        })
+    } catch (error: any) {
+        const statusCode = error instanceof ApiError ? error.statusCode : 500
+        return res.status(statusCode).json({
+            success: false,
+            message: error.message || "An unexpected error occurred while fetching user profile",
         })
     }
 }

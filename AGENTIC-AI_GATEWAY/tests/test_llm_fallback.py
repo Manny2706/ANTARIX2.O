@@ -21,6 +21,9 @@ def _reload(monkeypatch, **env):
     for key in (
         "GROQ_API_KEY",
         "OPENROUTER_API_KEY",
+    ):
+        monkeypatch.setenv(key, "")
+    for key in (
         "GROQ_MODEL",
         "GROQ_FALLBACK_MODELS",
         "OPENROUTER_MODEL",

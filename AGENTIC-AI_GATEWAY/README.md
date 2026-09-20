@@ -1,4 +1,4 @@
-# SatQuery AI — Backend
+SatQuery AI — Backend
 
 A production backend for the SatQuery AI research notebook: a multi-agent
 [LangGraph](https://github.com/langchain-ai/langgraph) pipeline over a
@@ -9,14 +9,14 @@ Capabilities (auto-routed by a supervisor agent from your **query + how many
 images you send** — you don't pick the task, and you don't have to label the
 images):
 
-| Task | What it does | Images |
-|------|--------------|--------|
-| `image_analysis` | Single-image VQA / scene description (optical or SAR) | 1 |
-| `grounding` | Locate / highlight the object named in the query → **box (or SAM mask) overlay** | ≥ 1 + a "highlight / where is / outline" query |
-| `change_detection` | Bi-temporal "what changed" **+ a pixel-difference change-map overlay ("where")** | ≥ 2 + a change/temporal query |
-| `cross_modal` | Joint optical + SAR interpretation | ≥ 2 + an optical/SAR query |
-| `geo_spatial` | CRS / bounds / resolution / pixel-space from the raster | ≥ 1 + a geometry query (rasterio) |
-| `retrieval` | Remote-sensing domain-knowledge background | 0+ |
+| Task                 | What it does                                                                           | Images                                          |
+| -------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `image_analysis`   | Single-image VQA / scene description (optical or SAR)                                  | 1                                               |
+| `grounding`        | Locate / highlight the object named in the query →**box (or SAM mask) overlay** | ≥ 1 + a "highlight / where is / outline" query |
+| `change_detection` | Bi-temporal "what changed"**+ a pixel-difference change-map overlay ("where")**  | ≥ 2 + a change/temporal query                  |
+| `cross_modal`      | Joint optical + SAR interpretation                                                     | ≥ 2 + an optical/SAR query                     |
+| `geo_spatial`      | CRS / bounds / resolution / pixel-space from the raster                                | ≥ 1 + a geometry query (rasterio)              |
+| `retrieval`        | Remote-sensing domain-knowledge background                                             | 0+                                              |
 
 Spatial results (grounding overlay, change map) come back in `AnalyzeResult.artifacts[]`
 as inline base64 PNG data URIs. `grounding` refines its box into a mask when
@@ -137,6 +137,7 @@ python -m satquery
 Open http://localhost:8000/docs
 
 **Notes**
+
 - Every new terminal: `cd` to the project and re-run `.venv\Scripts\activate.bat`.
 - **API only, no model download** (~skips a large checkpoint): skip steps 2–3 and
   set `VLM_BACKEND=disabled` in `.env`. Image tasks then return an "unavailable"
@@ -154,26 +155,26 @@ Open http://localhost:8000/docs
 Copy `.env.example` to `.env` and set at least `GROQ_API_KEY`
 (bash: `cp .env.example .env` — Windows cmd: `copy .env.example .env`).
 
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `GROQ_API_KEY` | – | **required** for routing / verification / synthesis |
-| `GROQ_MODEL` | `openai/gpt-oss-120b` | primary Groq chat model |
-| `GROQ_FALLBACK_MODELS` | `llama-3.3-70b-versatile,llama-3.1-8b-instant` | tried in order if the primary fails |
-| `OPENROUTER_API_KEY` | – | optional final fallback (OpenAI-compatible) |
-| `OPENROUTER_MODEL` | `openai/gpt-oss-120b` | model used on OpenRouter |
-| `VLM_BACKEND` | `local` | `local` (Qwen2-VL via transformers) or `disabled` |
-| `VLM_MODEL_ID` | `manny2706/satquery-qwen2vl-4bitQuantized` | HF checkpoint |
-| `VLM_DEVICE_MAP` | `auto` | passed to `from_pretrained` |
-| `VLM_LOAD_ON_STARTUP` | `false` | warm the model during app startup |
-| `SEGMENTER_BACKEND` | `disabled` | `sam` refines grounding boxes into masks (needs torch); `disabled` = box overlay only |
-| `SAM_MODEL_ID` | `facebook/sam-vit-base` | HF SAM checkpoint |
-| `ARTIFACT_MAX_DIM` | `1280` | overlays downscaled to this before base64 encoding |
-| `API_KEYS` | – | comma-separated; if set, callers must send `X-API-Key` |
-| `CORS_ORIGINS` | `*` | comma-separated origins |
-| `MAX_UPLOAD_MB` | `25` | per-file upload cap |
-| `DEFAULT_MAX_RETRIES` | `2` | reflection retry budget |
-| `MIN_CONFIDENCE` | `0.75` | below this the pipeline retries |
-| `WORK_DIR` | `./var/uploads` | where uploads are written |
+| Variable                 | Default                                          | Notes                                                                                     |
+| ------------------------ | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `GROQ_API_KEY`         | –                                               | **required** for routing / verification / synthesis                                 |
+| `GROQ_MODEL`           | `openai/gpt-oss-120b`                          | primary Groq chat model                                                                   |
+| `GROQ_FALLBACK_MODELS` | `llama-3.3-70b-versatile,llama-3.1-8b-instant` | tried in order if the primary fails                                                       |
+| `OPENROUTER_API_KEY`   | –                                               | optional final fallback (OpenAI-compatible)                                               |
+| `OPENROUTER_MODEL`     | `openai/gpt-oss-120b`                          | model used on OpenRouter                                                                  |
+| `VLM_BACKEND`          | `local`                                        | `local` (Qwen2-VL via transformers) or `disabled`                                     |
+| `VLM_MODEL_ID`         | `manny2706/satquery-qwen2vl-4bitQuantized`     | HF checkpoint                                                                             |
+| `VLM_DEVICE_MAP`       | `auto`                                         | passed to`from_pretrained`                                                              |
+| `VLM_LOAD_ON_STARTUP`  | `false`                                        | warm the model during app startup                                                         |
+| `SEGMENTER_BACKEND`    | `disabled`                                     | `sam` refines grounding boxes into masks (needs torch); `disabled` = box overlay only |
+| `SAM_MODEL_ID`         | `facebook/sam-vit-base`                        | HF SAM checkpoint                                                                         |
+| `ARTIFACT_MAX_DIM`     | `1280`                                         | overlays downscaled to this before base64 encoding                                        |
+| `API_KEYS`             | –                                               | comma-separated; if set, callers must send`X-API-Key`                                   |
+| `CORS_ORIGINS`         | `*`                                            | comma-separated origins                                                                   |
+| `MAX_UPLOAD_MB`        | `25`                                           | per-file upload cap                                                                       |
+| `DEFAULT_MAX_RETRIES`  | `2`                                            | reflection retry budget                                                                   |
+| `MIN_CONFIDENCE`       | `0.75`                                         | below this the pipeline retries                                                           |
+| `WORK_DIR`             | `./var/uploads`                                | where uploads are written                                                                 |
 
 The text model is a **fallback chain**: `GROQ_MODEL` → each `GROQ_FALLBACK_MODELS`
 entry (same Groq key) → OpenRouter (if `OPENROUTER_API_KEY` is set). Any error
@@ -320,16 +321,45 @@ const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
 ```jsonc
 {
   "query": "Describe the scene.",
+  "session_id": "optional-session-id",                    // for multi-turn conversations
   "optical_image_url": "https://example.com/scene.tif",   // or *_b64
   "max_retries": 2
 }
 ```
 
+### Multi-Turn Conversations & Memory
+
+SatQuery AI supports stateful, multi-turn conversations. Every response includes a `session_id`. When asking a follow-up question (e.g. *"what percentage?"* after asking *"is there vegetation?"*), pass the `session_id` back to the server:
+- **Image & asset retention:** You do not need to re-upload imagery on follow-up questions. The server retains active imagery, bounding boxes, and STAC metadata for the session.
+- **Contextual query resolution:** Coreferences, pronouns, and elliptical follow-ups are automatically resolved into standalone satellite analysis queries before specialist routing.
+- **Dialogue history:** Prior findings and dialogue context are fed into answer synthesis for coherent conversational answers.
+
+```bash
+# Turn 1: Initial query with image upload
+curl -s http://localhost:8000/api/v1/analyze \
+  -F 'query=Is there vegetation in this scene?' \
+  -F 'optical=@optical1.png'
+# Returns: {"session_id": "abc-123", "final_answer": "Yes, dense vegetation...", ...}
+
+# Turn 2: Follow-up query without re-uploading image
+curl -s http://localhost:8000/api/v1/analyze \
+  -F 'query=what percentage?' \
+  -F 'session_id=abc-123'
+```
+
+#### Session Management Endpoints
+- `GET /api/v1/sessions`: List all active sessions and turn counts.
+- `GET /api/v1/sessions/{session_id}`: View full conversation history, turn details, and cached assets.
+- `DELETE /api/v1/sessions/{session_id}`: Reset or delete a session and free its memory.
+
 ### Response (`AnalyzeResult`)
 
 ```jsonc
 {
+  "session_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "query": "...",
+  "raw_query": "what percentage?",
+  "resolved_query": "What percentage of the satellite image is covered by vegetation?",
   "final_answer": "The scene shows ...",
   "confidence": 0.82,
   "current_task": "image_analysis",
@@ -372,11 +402,11 @@ put Celery/RQ/Arq behind `satquery.jobs.manager.JobManager`.
 
 ### Meta
 
-| Route | Purpose |
-|-------|---------|
-| `GET /health` | liveness |
+| Route                  | Purpose                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| `GET /health`        | liveness                                                    |
 | `GET /api/v1/status` | LLM/VLM config, model fallback chain, graph nodes, defaults |
-| `GET /api/v1/graph` | Mermaid diagram of the compiled graph |
+| `GET /api/v1/graph`  | Mermaid diagram of the compiled graph                       |
 
 ---
 
@@ -437,8 +467,7 @@ make test-api        # runs the collection against a running server
 
 ## Troubleshooting
 
-**`final_answer: "... Vision model error: ... Qwen2VLVideoProcessor requires the
-Torchvision library ..."`**
+**`final_answer: "... Vision model error: ... Qwen2VLVideoProcessor requires the Torchvision library ..."`**
 transformers loads a video sub-processor for Qwen2-VL. Install it:
 
 ```

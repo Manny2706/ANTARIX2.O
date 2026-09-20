@@ -107,8 +107,15 @@ def image_analysis_node(state: SatQueryState) -> dict:
     image = state.get("optical_image") or state.get("sar_image") or first_image(state)
     if image is None:
         return _failed(state, "image_analysis_agent", "image_analysis", "No image was provided.")
-    print(image)
-    prompt = f"{IMAGE_ANALYSIS_PROMPT}\n\nUSER QUESTION:\n{state.get('query', '')}"
+    query = state.get("query", "")
+    history = state.get("conversation_history") or []
+    history_ctx = ""
+    if history:
+        last = history[-1]
+        summary = last.get("evidence_summary") or last.get("final_answer", "")
+        if summary:
+            history_ctx = f"\n\nPRIOR CONTEXT:\nPrevious finding: {str(summary)[:250]}"
+    prompt = f"{IMAGE_ANALYSIS_PROMPT}{history_ctx}\n\nUSER QUESTION:\n{query}"
     try:
         finding = get_vlm().caption(image, prompt, max_new_tokens=300)
     except VLMUnavailableError as exc:
@@ -167,6 +174,7 @@ def _change_result(state: SatQueryState, evidence: dict, overlay: str | None) ->
             kind="change_map",
             produced_by="change_detection_agent",
             image_b64=overlay,
+            replace_kind="change_map",
         )
     return result
 

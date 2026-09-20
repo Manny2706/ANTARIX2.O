@@ -109,8 +109,18 @@ def _image_summary(state: SatQueryState) -> str:
 
 
 def _llm_classify(state: SatQueryState) -> str:
+    history = state.get("conversation_history") or []
+    history_ctx = ""
+    if history:
+        last_turn = history[-1]
+        history_ctx = (
+            f"Prior context: The user previously asked '{last_turn.get('query')}' "
+            f"(Answer: '{str(last_turn.get('final_answer', ''))[:150]}').\n\n"
+        )
+
     prompt = (
         f"{SUPERVISOR_PROMPT}\n\n"
+        f"{history_ctx}"
         f"User query:\n{state.get('query', '')}\n\n"
         f"Images: {_image_summary(state)}\n\n"
         "Choose the single most appropriate task for this query and this set of "

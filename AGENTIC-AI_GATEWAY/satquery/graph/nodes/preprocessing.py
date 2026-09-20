@@ -6,16 +6,57 @@ They only record how many images arrived and any labels the client attached.
 
 from __future__ import annotations
 
+import logging
+from typing import Any
+
 from satquery.config import get_settings
+from satquery.graph.llm import invoke_text
 from satquery.graph.nodes._common import trace
+from satquery.graph.prompts import CONTEXTUALIZE_QUERY_PROMPT
 from satquery.graph.state import SatQueryState
 
+logger = logging.getLogger(__name__)
+
 _IMAGE_SLOTS = ("optical_image", "sar_image", "image_t1", "image_t2")
+
+
+def contextualize_query(query: str, history: list[dict[str, Any]]) -> str:
+    """Rewrite a follow-up query using conversation history into a standalone query."""
+    if not history or not query.strip():
+        return query
+
+    lines: list[str] = []
+    for turn in history[-4:]:
+        q = turn.get("query")
+        a = turn.get("final_answer")
+        if q:
+            lines.append(f"User: {q}")
+        if a:
+            lines.append(f"Assistant: {a[:300]}")
+    if not lines:
+        return query
+
+    history_text = "\n".join(lines)
+    prompt = CONTEXTUALIZE_QUERY_PROMPT.format(history=history_text, query=query)
+    try:
+        rewritten = invoke_text(prompt)
+        rewritten = rewritten.strip().strip('"').strip("'")
+        if rewritten and len(rewritten) > 2:
+            return rewritten
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Contextualize query failed: %s", exc)
+    return query
 
 
 def context_manager(state: SatQueryState) -> dict:
     images = state.get("images") or []
     image_count = len(images) or sum(1 for key in _IMAGE_SLOTS if state.get(key) is not None)
+
+    raw_query = state.get("raw_query") or state.get("query") or ""
+    history = state.get("conversation_history") or []
+    resolved_query = state.get("resolved_query")
+    if not resolved_query or (history and resolved_query == raw_query):
+        resolved_query = contextualize_query(raw_query, history)
 
     # `modalities` / `temporal_mode` are informational hints derived from the
     # optional upload labels; routing does not depend on them.
@@ -36,6 +77,9 @@ def context_manager(state: SatQueryState) -> dict:
 
     settings = get_settings()
     return {
+        "raw_query": raw_query,
+        "resolved_query": resolved_query,
+        "query": resolved_query,
         "image_count": image_count,
         "modalities": modalities,
         "temporal_mode": temporal_mode,
@@ -49,6 +93,7 @@ def context_manager(state: SatQueryState) -> dict:
                 "image_count": image_count,
                 "modalities": modalities,
                 "temporal_mode": temporal_mode,
+                "resolved_query": resolved_query,
             },
         ),
     }

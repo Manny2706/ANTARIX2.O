@@ -40,15 +40,16 @@ async def create_job(
     image_t1: UploadFile | None = File(default=None),
     image_t2: UploadFile | None = File(default=None),
     images: list[UploadFile] | None = File(default=None),
+    bbox: str | None = Form(default=None, description="[min_lon, min_lat, max_lon, max_lat] bounding box"),
     max_retries: int | None = Form(default=None, ge=0, le=5),
 ) -> JobDetail:
     kwargs = await collect_upload_inputs(
-        optical=optical, sar=sar, image_t1=image_t1, image_t2=image_t2, images=images
+        optical=optical, sar=sar, image_t1=image_t1, image_t2=image_t2, images=images, bbox=bbox
     )
     if not kwargs:
         raise HTTPException(
             status_code=422,
-            detail="Provide at least one image file (optical, sar, image_t1, image_t2 or images).",
+            detail="Provide at least one image file (optical, sar, image_t1, image_t2, images) or a valid bbox.",
         )
 
     def _task() -> dict:

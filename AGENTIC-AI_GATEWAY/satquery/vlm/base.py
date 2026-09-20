@@ -42,11 +42,19 @@ class VLMBackend(Protocol):
     ) -> str:
         """Answer ``prompt`` about a pair of images (change / cross-modal)."""
 
-    def ground(self, image: ImageInput, phrase: str, *, max_new_tokens: int | None = None) -> str:
+    def ground(
+        self,
+        image: ImageInput,
+        phrase: str,
+        *,
+        max_new_tokens: int | None = None,
+        do_sample: bool = False,
+    ) -> str:
         """Text-guided region grounding — raw model text containing a bounding box.
 
-        Optional: the grounding node falls back to ``caption`` with the grounding
-        prompt for backends that do not implement this.
+        ``do_sample`` is set on retries so they don't just repeat the same
+        greedy-decoded result. Optional: the grounding node falls back to
+        ``caption`` with the grounding prompt for backends without this.
         """
 
     def health(self) -> dict[str, Any]:

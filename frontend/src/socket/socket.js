@@ -1,9 +1,7 @@
 import { io } from "socket.io-client";
+import { SOCKET_URL } from "../config/api";
 
-export const socket = io(
-  import.meta.env.SOCKET_URL || "https://sat-query-ai-ten.vercel.app",
-  {
-    autoConnect: false,
-    transports: ["polling", "websocket"],
-  }
-);
+export const socket = io(SOCKET_URL, {
+  autoConnect: false,
+  transports: ["polling", "websocket"],
+});

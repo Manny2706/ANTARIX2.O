@@ -44,9 +44,9 @@ def _failed(state: SatQueryState, message: str, reason: str | None = None) -> di
     }
 
 
-def _run_vlm_ground(vlm, image, query: str) -> str:
+def _run_vlm_ground(vlm, image, query: str, *, retry: bool) -> str:
     if hasattr(vlm, "ground"):
-        return vlm.ground(image, query)
+        return vlm.ground(image, query, do_sample=retry)
     return vlm.caption(image, f"{GROUNDING_PROMPT}\n\nQUERY:\n{query}")
 
 
@@ -56,13 +56,16 @@ def grounding_node(state: SatQueryState) -> dict:
         return _failed(state, "No image was provided for grounding.")
 
     query = state.get("query", "")
+    is_retry = int(state.get("retry_count", 0) or 0) > 0
     try:
-        raw = _run_vlm_ground(get_vlm(), image, query)
+        raw = _run_vlm_ground(get_vlm(), image, query, retry=is_retry)
     except VLMUnavailableError as exc:
         return _failed(state, str(exc), "vlm unavailable")
     except Exception as exc:  # noqa: BLE001
         logger.exception("grounding VLM error")
         return _failed(state, f"Vision model error: {exc}", "vlm error")
+
+    logger.debug("grounding raw VLM output (retry=%s): %r", is_retry, raw)
 
     width, height = image_size(image)
     boxes = parse_boxes(raw, width=width, height=height)
@@ -130,6 +133,7 @@ def grounding_node(state: SatQueryState) -> dict:
             kind="grounding_overlay",
             produced_by="grounding_agent",
             image_b64=overlay,
+            replace_kind="grounding_overlay",
         ),
         "execution_trace": trace(
             state,

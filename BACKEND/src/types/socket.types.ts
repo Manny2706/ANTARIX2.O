@@ -46,3 +46,31 @@ export interface MLResponse {
     duration_seconds?: number;
      artifacts?: MLArtifact[];
 }
+
+export type SocketLocationSend = {
+    key: string;
+
+    conversationId: string;
+    userId: string;
+
+    query: string;
+    max_retries: number;
+    bbox: [number, number, number, number];
+    session_id: string;
+}
+
+export type LocationMLRequest = {
+    query: string;
+    max_retries: number;
+    bbox: [number, number, number, number];
+    session_id: string;
+}
+export type HandleLocationMessage = {
+    conversationId: string;
+    userId: string;
+
+    query: string;
+    max_retries: number;
+    bbox: [number, number, number, number];
+    session_id: string;
+}

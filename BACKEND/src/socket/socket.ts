@@ -1,7 +1,7 @@
 import { Server as HttpServer } from "http"
 import { Server, Socket } from "socket.io"
-import { handleMessageSend } from "../service/chat.service"
-import { SocketSendMessage } from "../types/socket.types"
+import { handleMessageSend ,handleMessageSendLocation} from "../service/chat.service"
+import { SocketSendMessage, SocketLocationSend } from "../types/socket.types"
 
 export let io: Server
 const initiateSocketConnection = async (httpServer: HttpServer) => {
@@ -43,6 +43,38 @@ const initiateSocketConnection = async (httpServer: HttpServer) => {
                 console.log("ERROR: Error in message send", error)
                 socket.emit("message:error", {
                     message: "Something went wrong",
+                })
+            }
+        })
+        //location cord
+        socket.on("location:send",async (data:SocketLocationSend)=>{
+            try {
+                const { key, conversationId, userId,  query, max_retries,  bbox, session_id} = data
+                if (!key || !query ||  !bbox || !session_id) {
+                    return socket.emit("location:error", "Invalid Message data")
+                }
+                if (key !== process.env.SOCKET_KEY) {
+                    socket.emit("location:error", {
+                        message: "Unauthorized",
+                    });
+                    return
+                }
+
+                console.log(" Key verified")
+                console.log(`the message is : ${query} and the key is ${key}`)
+
+                await handleMessageSendLocation(socket, {
+                    conversationId,
+                    userId,
+                    query,
+                    max_retries,
+                    bbox,
+                    session_id
+                })
+            } catch (error) {
+                console.log("ERROR: Error in Location Query", error)
+                socket.emit("location:error", {
+                    message: "Something went wrong while Location Query",
                 })
             }
         })

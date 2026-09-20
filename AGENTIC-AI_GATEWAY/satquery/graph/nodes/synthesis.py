@@ -58,10 +58,27 @@ def answer_synthesis_node(state: SatQueryState) -> dict:
     except (TypeError, ValueError):
         confidence = 0.0
 
+    history_str = ""
+    history = state.get("conversation_history") or []
+    if history:
+        history_lines = []
+        for t in history[-4:]:
+            q = t.get("query", "")
+            a = t.get("final_answer", "")
+            if q and a:
+                history_lines.append(f"User: {q}\nAssistant: {a}")
+        if history_lines:
+            history_str = "Prior conversation:\n" + "\n".join(history_lines) + "\n\n"
+
+    user_query = state.get("raw_query") or state.get("query", "")
+    if state.get("resolved_query") and state.get("resolved_query") != user_query:
+        user_query = f"{user_query} (Context: {state.get('resolved_query')})"
+
     prompt = ANSWER_SYNTHESIS_PROMPT.format(
-        query=state.get("query", ""),
+        query=user_query,
         evidence=evidence_text,
         confidence=confidence,
+        conversation_history=history_str,
     )
     try:
         answer = invoke_text(prompt)

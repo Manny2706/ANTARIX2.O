@@ -8,6 +8,7 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from satquery.geospatial.stac import STACError, SceneNotFoundError
 from satquery.graph.llm import LLMUnavailableError
 from satquery.vlm.base import VLMUnavailableError
 
@@ -15,6 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 def install_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(SceneNotFoundError)
+    async def _scene_not_found(_request: Request, exc: SceneNotFoundError):
+        return JSONResponse(
+            status_code=404, content={"error": "scene_not_found", "detail": str(exc)}
+        )
+
+    @app.exception_handler(STACError)
+    async def _stac_error(_request: Request, exc: STACError):
+        return JSONResponse(
+            status_code=502, content={"error": "stac_error", "detail": str(exc)}
+        )
+
     @app.exception_handler(LLMUnavailableError)
     async def _llm_unavailable(_request: Request, exc: LLMUnavailableError):
         return JSONResponse(

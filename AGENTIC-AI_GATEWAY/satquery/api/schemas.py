@@ -28,7 +28,10 @@ class ArtifactRef(BaseModel):
 
 
 class AnalyzeResult(BaseModel):
+    session_id: str | None = Field(default=None, description="Session ID for multi-turn conversation tracking")
     query: str = ""
+    raw_query: str | None = None
+    resolved_query: str | None = None
     final_answer: str = ""
     confidence: float = 0.0
     current_task: str | None = None
@@ -43,6 +46,12 @@ class AnalyzeResult(BaseModel):
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     execution_trace: list[Any] = Field(default_factory=list)
     duration_seconds: float | None = None
+    stac_metadata: dict[str, Any] | None = None
+    conversation_history: list[dict[str, Any]] = Field(default_factory=list)
+    output_image_b64: str | None = Field(
+        default=None,
+        description="Base64-encoded PNG image of the analyzed satellite AOI (data:image/png;base64,...)",
+    )
 
     @classmethod
     def from_state(cls, state: dict) -> "AnalyzeResult":
@@ -52,10 +61,28 @@ class AnalyzeResult(BaseModel):
             data["confidence"] = float(data.get("confidence") or 0.0)
             evidence.append(EvidenceItem(**data))
 
+        output_image_b64 = state.get("output_image_b64")
+        stac_metadata = state.get("stac_metadata")
+        if not output_image_b64 and stac_metadata and isinstance(stac_metadata, dict):
+            output_image_b64 = stac_metadata.get("image_b64")
+
+        clean_stac_meta = None
+        if stac_metadata and isinstance(stac_metadata, dict):
+            clean_stac_meta = {k: v for k, v in stac_metadata.items() if k != "image_b64"}
+
         artifacts = [
             ArtifactRef(**{k: v for k, v in raw.items() if k in ArtifactRef.model_fields})
             for raw in state.get("artifacts", []) or []
         ]
+        if output_image_b64 and not any(a.artifact_id == "satellite_crop" for a in artifacts):
+            artifacts.append(
+                ArtifactRef(
+                    artifact_id="satellite_crop",
+                    kind="optical_source",
+                    produced_by="stac",
+                    image_b64=output_image_b64,
+                )
+            )
 
         try:
             confidence = float(state.get("confidence") or 0.0)
@@ -63,7 +90,10 @@ class AnalyzeResult(BaseModel):
             confidence = 0.0
 
         return cls(
+            session_id=state.get("session_id"),
             query=state.get("query", ""),
+            raw_query=state.get("raw_query"),
+            resolved_query=state.get("resolved_query"),
             final_answer=state.get("final_answer", ""),
             confidence=confidence,
             current_task=state.get("current_task"),
@@ -78,12 +108,31 @@ class AnalyzeResult(BaseModel):
             artifacts=artifacts,
             execution_trace=state.get("execution_trace", []),
             duration_seconds=state.get("duration_seconds"),
+            stac_metadata=clean_stac_meta,
+            conversation_history=state.get("conversation_history", []),
+            output_image_b64=None,
         )
 
 
 class AnalyzeJsonRequest(BaseModel):
     query: str = Field(min_length=1)
+    session_id: str | None = Field(default=None, description="Optional session ID for multi-turn conversation memory")
     max_retries: int | None = Field(default=None, ge=0, le=5)
+
+    bbox: list[float] | None = Field(
+        default=None,
+        description="[min_lon, min_lat, max_lon, max_lat] bounding box in WGS84 (EPSG:4326)",
+    )
+    datetime_range: str | None = Field(
+        default=None,
+        description="ISO-8601 datetime or range, e.g. '2024-01-01T00:00:00Z/2024-03-01T23:59:59Z'",
+    )
+    max_cloud_cover: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=100.0,
+        description="Maximum cloud cover percentage filter (0-100)",
+    )
 
     optical_image_url: str | None = None
     sar_image_url: str | None = None
@@ -107,3 +156,34 @@ class JobSummary(BaseModel):
 
 class JobDetail(JobSummary):
     result: AnalyzeResult | None = None
+
+
+class SessionSummary(BaseModel):
+    session_id: str
+    created_at: float
+    last_accessed: float
+    turn_count: int
+    has_assets: bool
+
+
+class TurnDetail(BaseModel):
+    turn_id: int
+    query: str
+    resolved_query: str
+    final_answer: str
+    task: str | None = None
+    evidence_summary: str | None = None
+    timestamp: float
+
+
+class SessionDetail(BaseModel):
+    session_id: str
+    created_at: float
+    last_accessed: float
+    turn_count: int
+    image_count: int
+    has_optical: bool
+    has_sar: bool
+    bbox: list[float] | None = None
+    turns: list[TurnDetail] = Field(default_factory=list)
+

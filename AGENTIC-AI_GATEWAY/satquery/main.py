@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from satquery import __version__
 from satquery.api.errors import install_exception_handlers
-from satquery.api.routes import analyze, health, jobs
+from satquery.api.routes import analyze, health, jobs, sessions
 from satquery.config import get_settings
 from satquery.jobs import get_job_manager
 from satquery.logging_config import configure_logging
@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(analyze.router)
     app.include_router(jobs.router)
+    app.include_router(sessions.router)
     return app
 
 

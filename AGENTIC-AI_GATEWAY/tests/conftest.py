@@ -38,7 +38,7 @@ class FakeVLM:
             "CONFIDENCE:\n0.6"
         )
 
-    def ground(self, image, phrase, *, max_new_tokens=None) -> str:
+    def ground(self, image, phrase, *, max_new_tokens=None, do_sample=False) -> str:
         self.calls.append(("ground", str(phrase)[:60]))
         return "TARGET: water body\nBOX: [0.12, 0.30, 0.48, 0.86]\nCONFIDENCE: 0.7"
 
@@ -88,6 +88,10 @@ def fake_llm_text(prompt: str, system: str | None = None) -> str:
         )
     if "KNOWLEDGE ASSISTANT" in upper:
         return "DOMAIN_KNOWLEDGE:\nSAR backscatter rises with surface roughness and moisture.\nCAVEATS:\nGeneral only."
+    if "CONVERSATIONAL QUERY ASSISTANT" in upper:
+        if "PERCENTAGE" in upper:
+            return "What percentage of the satellite image is covered by vegetation?"
+        return "What is the detailed analysis of the previously identified features in the satellite image?"
     return "OK"
 
 
@@ -101,11 +105,13 @@ def wire_stubs(monkeypatch, tmp_path):
     from satquery.config import reload_settings
     from satquery.graph import reset_graph
     from satquery.graph.llm import set_llm_text_override
+    from satquery.graph.session import reset_session_manager
     from satquery.segmentation import reset_segmenter
     from satquery.vlm import reset_vlm, set_vlm
 
     reload_settings()
     reset_graph()
+    reset_session_manager()
     reset_segmenter()
     set_llm_text_override(fake_llm_text)
     set_vlm(FakeVLM())
@@ -113,6 +119,7 @@ def wire_stubs(monkeypatch, tmp_path):
     yield
 
     set_llm_text_override(None)
+    reset_session_manager()
     reset_vlm()
     reset_segmenter()
     reset_graph()

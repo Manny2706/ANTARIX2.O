@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     # ----------------------------------------------------------------- storage
     work_dir: Path = ROOT_DIR / "var" / "uploads"
+    session_db_path: Path = ROOT_DIR / "var" / "sessions.db"
 
     # --------------------------------------------------------- LLM + fallbacks
     # The text model is a chain: primary Groq model -> extra Groq models ->
@@ -73,6 +74,13 @@ class Settings(BaseSettings):
     # Visual evidence (box overlays, change maps) is returned inline as a
     # base64 PNG data URI; images are downscaled to at most this dimension.
     artifact_max_dim: int = 1280
+
+    # ---------------------------------------- STAC / Planetary Computer
+    planetary_computer_api_key: str | None = None
+    stac_search_url: str = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
+    stac_sign_url: str = "https://planetarycomputer.microsoft.com/api/sas/v1/sign"
+    stac_default_cloud_cover: float = 20.0
+    stac_search_days_back: int = 90
 
     # ------------------------------------------------------------------ graph
     default_max_retries: int = 2

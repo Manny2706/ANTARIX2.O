@@ -6,6 +6,12 @@ from typing import Any, TypedDict
 
 
 class SatQueryState(TypedDict, total=False):
+    # --- session & conversation ---------------------------------------------
+    session_id: str | None
+    raw_query: str
+    resolved_query: str
+    conversation_history: list[dict[str, Any]]
+
     # --- request ------------------------------------------------------------
     query: str
     images: list[Any]
@@ -15,6 +21,9 @@ class SatQueryState(TypedDict, total=False):
     image_t2: str | None
     roi: Any
     max_retries: int
+    bbox: list[float] | None
+    stac_metadata: dict[str, Any] | None
+    output_image_b64: str | None
 
     # --- derived context -------------------------------------------------- --
     image_count: int
