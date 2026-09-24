@@ -21,6 +21,11 @@ COPY prisma7.config.ts ./
 COPY prisma.config.ts ./
 COPY tsconfig.json ./
 
+# Environment configuration (DATABASE_URL provided for build-time prisma generate)
+ENV PORT=7000 \
+    NODE_ENV=production \
+    DATABASE_URL="postgresql://postgres:postgres@postgres:5432/satquery?schema=public"
+
 # Generate Prisma client artifacts
 RUN npx prisma generate --config prisma7.config.ts
 
@@ -29,14 +34,10 @@ COPY src ./src/
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./
-RUN chmod +x ./docker-entrypoint.sh
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 # Build TypeScript to dist/ (falls back gracefully to ts-node-dev if warnings occur)
 RUN npm run build || true
-
-# Default environment configuration
-ENV PORT=7000 \
-    NODE_ENV=production
 
 EXPOSE 7000
 
