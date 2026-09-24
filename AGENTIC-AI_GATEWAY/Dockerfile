@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
 COPY requirements.txt requirements-ml.txt requirements-geo.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt

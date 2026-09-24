@@ -47,9 +47,13 @@ ENV PYTHONUNBUFFERED=1 \
     API_PORT=8000 \
     VLM_BACKEND=disabled \
     ML_API_URL=http://127.0.0.1:8000/api/v1/analyze/stream \
-    SOCKET_KEY=bgvpit303269bgwb9nishant
+    SOCKET_KEY=bgvpit303269bgwb9nishant \
+    DB_USER=postgres \
+    DB_PASSWORD=postgres \
+    DB_NAME=satquery \
+    DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/satquery?schema=public
 
-# Install system dependencies: Node.js 20, Nginx, Supervisor, OpenSSL, curl
+# Install system dependencies: Node.js 20, Nginx, Supervisor, PostgreSQL, OpenSSL, curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
@@ -57,6 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         nginx \
         supervisor \
+        postgresql \
         openssl \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -65,8 +70,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up Gateway (Python)
+# Initialize the bundled PostgreSQL cluster with the app's default role & database
+RUN mkdir -p /var/run/postgresql && chown postgres:postgres /var/run/postgresql \
+    && PG_VERSION=$(ls /etc/postgresql) \
+    && pg_ctlcluster "$PG_VERSION" main start \
+    && su postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'postgres';\"" \
+    && su postgres -c "createdb satquery" \
+    && pg_ctlcluster "$PG_VERSION" main stop
+
+# Set up Gateway (Python) inside its own virtual environment
 WORKDIR /app/gateway
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 COPY AGENTIC-AI_GATEWAY/requirements.txt AGENTIC-AI_GATEWAY/requirements-geo.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir -r requirements-geo.txt
@@ -76,7 +91,7 @@ RUN pip install --no-cache-dir --no-deps -e .
 # Set up Backend (Node.js)
 WORKDIR /app/backend
 COPY BACKEND/package*.json ./
-RUN npm install
+RUN npm install --include=dev
 COPY BACKEND/prisma ./prisma/
 COPY BACKEND/prisma7.config.ts ./
 COPY BACKEND/prisma.config.ts ./
@@ -97,7 +112,8 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # 80   -> Frontend (Nginx)
 # 7000 -> Backend API & Socket.IO
 # 8000 -> Agentic AI Gateway
-EXPOSE 80 7000 8000
+# 5432 -> Bundled PostgreSQL (optional, for inspection)
+EXPOSE 80 7000 8000 5432
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:7000/health && curl -fsS http://localhost:8000/health || exit 1
