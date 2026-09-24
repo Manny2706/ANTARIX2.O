@@ -2,7 +2,7 @@ import os
 import requests
 import json
 
-API_KEY = "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"
+API_KEY = ""
 
 
 if not API_KEY:
