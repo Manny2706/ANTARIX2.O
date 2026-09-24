@@ -47,8 +47,18 @@ const normalizeConversation = (conversation) => {
     || (Array.isArray(userMessage?.imageUrls) ? userMessage.imageUrls[0] : null)
     || null;
 
+  const extractedUserId = conversation.userId
+    || conversation.user_id
+    || conversation.ownerId
+    || conversation.owner_id
+    || (typeof conversation.user === 'object' ? conversation.user?.id : (typeof conversation.user === 'string' ? conversation.user : null))
+    || userMessage?.userId
+    || userMessage?.user_id
+    || null;
+
   return {
     id: conversation.id,
+    userId: extractedUserId,
     title,
     thumbnail,
     date: conversation.date || latestMessage?.createdAt || new Date().toISOString(),
@@ -108,14 +118,28 @@ export default function Dashboard({
 
     setMessagesLoading(initialMsgs.length === 0);
 
-    fetch(`${MESSAGES_API_BASE}/${analysis.id}`)
+    const token = localStorage.getItem('satquery_auth_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      headers['x-auth-token'] = token;
+      headers['token'] = token;
+    }
+
+    fetch(`${MESSAGES_API_BASE}/${analysis.id}`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`Messages fetch failed (${res.status})`);
         return res.json();
       })
       .then((payload) => {
-        if (payload.success && Array.isArray(payload.data) && payload.data.length > 0) {
-          const sorted = [...payload.data].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        const rawMsgs = Array.isArray(payload?.data)
+          ? payload.data
+          : (Array.isArray(payload?.messages)
+            ? payload.messages
+            : (Array.isArray(payload?.data?.messages) ? payload.data.messages : []));
+
+        if (rawMsgs.length > 0) {
+          const sorted = [...rawMsgs].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
           setActiveMessages(sorted);
         }
       })
@@ -151,12 +175,32 @@ export default function Dashboard({
 
     const loadHistory = async () => {
       let remoteList = [];
+      const token = localStorage.getItem('satquery_auth_token') || '';
+      const currentUserId = user?.id || user?.data?.id || (user && typeof user === 'object' && user.id) || '';
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        headers['x-auth-token'] = token;
+        headers['token'] = token;
+      }
+
       try {
-        const response = await fetch(HISTORY_URL, { signal: controller.signal });
+        const fetchUrl = currentUserId ? `${HISTORY_URL}?userId=${encodeURIComponent(currentUserId)}` : HISTORY_URL;
+        const response = await fetch(fetchUrl, { headers, signal: controller.signal });
         if (response.ok) {
           const payload = await response.json();
           if (payload.success && Array.isArray(payload.data)) {
-            remoteList = payload.data.map(normalizeConversation);
+            remoteList = payload.data
+              .map(normalizeConversation)
+              .filter(item => {
+                if (currentUserId && item.userId) {
+                  return String(item.userId) === String(currentUserId);
+                }
+                return true;
+              });
           }
         }
       } catch (error) {
@@ -171,7 +215,15 @@ export default function Dashboard({
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            localList = parsed.map(normalizeConversation);
+            localList = parsed
+              .map(normalizeConversation)
+              .filter(item => {
+                if (currentUserId) {
+                  return item.userId && String(item.userId) === String(currentUserId);
+                } else {
+                  return !item.userId;
+                }
+              });
           }
         }
       } catch (err) {
@@ -196,7 +248,7 @@ export default function Dashboard({
     loadHistory();
 
     return () => controller.abort();
-  }, []);
+  }, [user]);
 
   const filteredConversations = useMemo(() => {
     const search = historySearch.trim().toLowerCase();

@@ -10,7 +10,7 @@ services:
       GROQ_FALLBACK_MODELS: ${GROQ_FALLBACK_MODELS:-llama-3.3-70b-versatile,llama-3.1-8b-instant}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b}
-      VLM_BACKEND: ${VLM_BACKEND:-disabled}
+      VLM_BACKEND: ${VLM_BACKEND:-local}
       VLM_MODEL_ID: ${VLM_MODEL_ID:-manny2706/satquery-qwen2vl-4bitQuantized}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       API_KEYS: ${API_KEYS:-}
@@ -18,15 +18,16 @@ services:
       - ./var:/app/var
     restart: unless-stopped
 
-    # --- Local GPU inference (VLM_BACKEND=local) --------------------------
-    # 1. Build with the ML deps enabled in the Dockerfile.
-    # 2. Install the NVIDIA Container Toolkit on the host.
-    # 3. Uncomment:
-    # gpus: all
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    # --- Local GPU inference (VLM_BACKEND=local, the image default) -------
+    # Requires the NVIDIA Container Toolkit installed on the host. If it
+    # isn't available, comment this block back out (and set VLM_BACKEND back
+    # to "disabled" or a non-quantized model) — without a GPU attached,
+    # bitsandbytes 4-bit inference has no CPU fallback and errors on request.
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

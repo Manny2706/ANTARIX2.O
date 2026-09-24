@@ -80,13 +80,8 @@ async def analyze_stream(
     """Run an analysis and stream progress as Server-Sent Events.
 
     Events: ``start``, ``progress`` (one per graph node, carrying its trace
-    entry), ``artifact`` (one per visual artifact, sent as soon as the run
-    finishes and before ``result`` — full ``ArtifactRef`` including its
-    image), ``result`` (the ``AnalyzeResult`` with artifact images omitted,
-    since they were already sent as their own ``artifact`` events), ``error``.
-    Splitting the image out of the final payload keeps every individual SSE
-    frame small — a single frame carrying a multi-MB inline image has been
-    unreliable through some proxies/tunnels.
+    entry), ``result`` (the full ``AnalyzeResult``, including artifact
+    images), ``error``.
     """
     kwargs = await collect_upload_inputs(
         optical=optical, sar=sar, image_t1=image_t1, image_t2=image_t2, images=images, bbox=bbox
@@ -104,12 +99,7 @@ async def analyze_stream(
             if kind == "progress":
                 yield {"event": "progress", "data": event["entry"]}
             elif kind == "result":
-                payload = AnalyzeResult.from_state(event["state"]).model_dump(mode="json")
-                for artifact in payload.get("artifacts", []):
-                    if artifact.get("image_b64"):
-                        yield {"event": "artifact", "data": dict(artifact)}
-                    artifact["image_b64"] = None
-                yield {"event": "result", "data": payload}
+                yield {"event": "result", "data": AnalyzeResult.from_state(event["state"]).model_dump(mode="json")}
             elif kind == "error":
                 yield {"event": "error", "data": {"detail": event["detail"]}}
             else:  # "start"

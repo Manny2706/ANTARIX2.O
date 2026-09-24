@@ -1,20 +1,27 @@
-import { getConversationsByUserId,getMessagesByConversationId } from "../service/history.service"
-import {Request,Response} from 'express'
+import { getConversationsByUserId, getMessagesByConversationId } from "../service/history.service"
+import { Request, Response } from 'express'
 
 
-const getConversations = async (req:Request,res:Response)=>{
+const getConversations = async (req: Request, res: Response) => {
     try {
-        const conversations = await getConversationsByUserId("70fa21d1-c6c0-4766-a264-9c2d418352c2")
+        const userId = req.user?.id || req.user?._id
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized: User not authenticated",
+            })
+        }
+        const conversations = await getConversationsByUserId(userId)
         return res.status(200).json({
-            success:true,
-            message:"Conversations fetched successfully",
-            data:conversations
+            success: true,
+            message: "Conversations fetched successfully",
+            data: conversations
         })
     } catch (error) {
         console.log(error)
         return res.status(500).json({
-            success:false,
-            message:"Internal server error"
+            success: false,
+            message: "Internal server error"
         })
     }
 }

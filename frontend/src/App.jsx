@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard'
 import SearchPage from './components/SearchPage'
 import Signup from './components/Signup'
 import Login from './components/Login'
+import { AUTH_ENDPOINTS } from './config/api'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -23,6 +24,39 @@ function App() {
   const [token, setToken] = useState(() => {
     return localStorage.getItem('satquery_auth_token') || '';
   });
+
+  // Fetch /api/auth/me to get current authenticated user data & user ID
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchMe = async () => {
+      try {
+        const response = await fetch(AUTH_ENDPOINTS.ME, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'x-auth-token': token,
+            'token': token
+          }
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            const userData = result.data;
+            setUser(userData);
+            setIsLoggedIn(true);
+            localStorage.setItem('satquery_user', JSON.stringify(userData));
+            localStorage.setItem('satquery_is_logged_in', 'true');
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching /api/auth/me:', err);
+      }
+    };
+
+    fetchMe();
+  }, [token]);
 
   // Route Guard Function: Enforces route protection rules
   const getGuardedPage = (requestedPage, loggedIn) => {
@@ -76,19 +110,39 @@ function App() {
     setCurrentPage(safePage);
   };
 
-  const handleLoginSuccess = (authData) => {
-    const userData = authData?.user || authData || { fullName: 'User', email: 'user@satquery.ai' };
-    const authToken = authData?.token || '';
+  const handleLoginSuccess = async (authData) => {
+    const rawUserData = authData?.user || authData?.data || authData;
+    const authToken = authData?.token || authData?.data?.token || localStorage.getItem('satquery_auth_token') || '';
+
+    let userData = rawUserData;
+    if (authToken) {
+      setToken(authToken);
+      localStorage.setItem('satquery_auth_token', authToken);
+      try {
+        const res = await fetch(AUTH_ENDPOINTS.ME, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'x-auth-token': authToken,
+            'token': authToken
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            userData = json.data;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch me on login success:', err);
+      }
+    }
 
     setIsLoggedIn(true);
     setUser(userData);
-    setToken(authToken);
-
     localStorage.setItem('satquery_is_logged_in', 'true');
     localStorage.setItem('satquery_user', JSON.stringify(userData));
-    if (authToken) {
-      localStorage.setItem('satquery_auth_token', authToken);
-    }
 
     navigateTo('searchpage');
   };

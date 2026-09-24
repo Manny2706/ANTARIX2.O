@@ -1834,6 +1834,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { socket } from '../socket/socket';
 import { DEFAULT_USER_ID, SOCKET_KEY } from '../config/api';
 import Dashboard from './Dashboard';
+import MapSelectModal from './MapSelectModal';
 import './SearchPage.css';
 
 function KV({ label, value }) {
@@ -1856,6 +1857,8 @@ export default function SearchPage({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDashboardPanelOpen, setIsDashboardPanelOpen] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [mapRegion, setMapRegion] = useState(null); // { bbox: [min_lon, min_lat, max_lon, max_lat] }
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalFeature, setAuthModalFeature] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -1864,7 +1867,14 @@ export default function SearchPage({
   const [queryText, setQueryText] = useState("");
   const [rawBackendResponse, setRawBackendResponse] = useState(null);
   const [conversationId, setConversationId] = useState(null);
-  const [userId] = useState(user?.id || DEFAULT_USER_ID);
+  const conversationIdRef = useRef(conversationId);
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+  const [mlSessionId, setMlSessionId] = useState(null);
+  const [mlStatusPayload, setMlStatusPayload] = useState(null);
+  const [mlStatusHistory, setMlStatusHistory] = useState([]);
+  const currentUserId = user?.id || user?.data?.id || (user && typeof user === 'object' && user.id) || DEFAULT_USER_ID;
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeResultTab, setActiveResultTab] = useState('overview');
@@ -1890,8 +1900,12 @@ export default function SearchPage({
     setQueryText('');
     setInputValue('');
     setUploadedFiles([]);
+    setMapRegion(null);
     setSentFiles([]);
     setConversationId(null);
+    setMlSessionId(null);
+    setMlStatusPayload(null);
+    setMlStatusHistory([]);
     setAnalysisComplete(false);
     setIsLoading(false);
     setBackendResult(null);
@@ -2448,31 +2462,69 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
       console.log("Socket connected:", socket.id);
     });
 
-    const handleStatus = (data) => {
-      console.log("📡 STATUS:", data);
+    socket.on("message:status", (data) => {
+      console.log("📡 ML STATUS UPDATE:", data);
+      const { conversationId: statusConvId, event, data: payload } = data || {};
 
-      if (data.event === "start") {
-        setProcessingNodes([]);
-        return;
+      if (statusConvId && (!conversationIdRef.current || conversationIdRef.current.startsWith('conv_local_'))) {
+        setConversationId(statusConvId);
       }
 
-      if (data.event === "progress") {
-        const nodeData = data.data;
-
-        if (!nodeData?.node) return;
-
-        setProcessingNodes((prev) => [
-          ...prev,
-          {
-            node: nodeData.node,
-            status: nodeData.status,
-            data: nodeData,
-          },
-        ]);
+      if (event === "start") {
+        console.log("🚀 ML Processing Started. Session ID:", payload?.session_id);
+        if (payload?.session_id) {
+          setMlSessionId(payload.session_id);
+        }
+        setMlStatusHistory(prev => {
+          if (prev.some(item => item.id === 'start')) return prev;
+          return [
+            ...prev,
+            { id: 'start', node: 'start', title: 'ML Pipeline Initialized', desc: `Session: ${payload?.session_id || 'active'}`, status: 'COMPLETED' }
+          ];
+        });
+        setTimelineStep(prev => Math.max(prev, 1));
       }
-    };
 
-    socket.on("message:status", handleStatus);
+      if (event === "progress") {
+        const rawNode = payload?.node || "processing";
+        const rawStatus = payload?.status || "processing";
+        const node = String(rawNode).toLowerCase();
+        const status = String(rawStatus).toUpperCase();
+        console.log(`📡 Node: ${node} → Status: ${status}`);
+        setMlStatusPayload(payload);
+
+        setMlStatusHistory(prev => {
+          const existingIndex = prev.findIndex(item => item.node === rawNode);
+          const newItem = {
+            id: `node_${rawNode}`,
+            node: rawNode,
+            title: `Node: ${String(rawNode).toUpperCase()}`,
+            status: status,
+            target: payload?.target,
+            attempt: payload?.attempt,
+            confidence: payload?.confidence
+          };
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = newItem;
+            return updated;
+          }
+          return [...prev, newItem];
+        });
+
+        if (node.includes("grounding") || node.includes("query") || node.includes("input")) {
+          setTimelineStep(prev => Math.max(prev, 2));
+        } else if (node.includes("task") || node.includes("specialist")) {
+          setTimelineStep(prev => Math.max(prev, 3));
+        } else if (node.includes("analysis") || node.includes("verification")) {
+          setTimelineStep(prev => Math.max(prev, 4));
+        } else if (node.includes("evidence")) {
+          setTimelineStep(prev => Math.max(prev, 5));
+        } else if (node.includes("response") || node.includes("final")) {
+          setTimelineStep(prev => Math.max(prev, 6));
+        }
+      }
+    });
 
     socket.on("message:response", (data) => {
       console.log("AI RESPONSE:", data);
@@ -2532,7 +2584,7 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
       setIsLoading(false);
       setAnalysisComplete(true);
 
-      const activeConvId = data?.conversationId || conversationId;
+      const activeConvId = data?.conversationId || conversationIdRef.current;
       try {
         const existing = JSON.parse(localStorage.getItem('satquery_local_history') || '[]');
         if (existing.length > 0) {
@@ -2601,13 +2653,13 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
 
     return () => {
       socket.off("connect");
-      socket.off("message:status", handleStatus);
+      socket.off("message:status");
       socket.off("message:response");
       socket.off("message:error");
       socket.off("connect_error");
       socket.disconnect();
     };
-  }, [conversationId]);
+  }, []);
 
   const handleFileUpload = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -2661,14 +2713,25 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
     setUploadError('');
   };
 
+  const removeMapRegion = () => {
+    setMapRegion(null);
+  };
+
+  const handleMapRegionConfirm = (bbox) => {
+    setMapRegion({ bbox });
+    setIsMapModalOpen(false);
+    setUploadError('');
+  };
+
   const handleSend = async () => {
     const currentQuery = inputValue.trim();
-    if (uploadedFiles.length === 0) {
-      setUploadError('Please upload a satellite image to start analysis.');
+    if (uploadedFiles.length === 0 && !mapRegion) {
+      setUploadError('Please upload a satellite image or select a region on the map to start analysis.');
       return;
     }
 
     const currentFiles = [...uploadedFiles];
+    const currentRegion = mapRegion;
     const isLocalId = !conversationId || conversationId.startsWith('conv_local_');
     const newConvId = isLocalId ? `conv_local_${Date.now()}` : conversationId;
 
@@ -2680,7 +2743,9 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
     setAnalysisComplete(false);
     setTimelineStep(0);
     setActiveResultTab('overview');
-    setProcessingNodes([]);
+    setMlSessionId(null);
+    setMlStatusPayload(null);
+    setMlStatusHistory([]);
 
     const imagesBase64 = [];
     const imagesDataUrls = [];
@@ -2713,11 +2778,13 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
     try {
       const newHistoryItem = {
         id: newConvId,
+        userId: currentUserId,
         title: currentQuery || 'Satellite image analysis',
         date: new Date().toISOString(),
         mode: currentFiles.length > 1 ? 'Bi-Temporal' : (currentFiles.length === 1 ? 'Single Image' : 'Single Image'),
         confidence: null,
         status: 'PENDING',
+        bbox: currentRegion?.bbox || null,
         rawMessages: [
           {
             id: `msg_user_${Date.now()}`,
@@ -2739,10 +2806,14 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
 
     const payload = {
       key: SOCKET_KEY,
-      userId,
+      userId: currentUserId,
       message: currentQuery,
       images: imagesBase64,
     };
+
+    if (currentRegion?.bbox) {
+      payload.bbox = currentRegion.bbox;
+    }
 
     if (conversationId && !conversationId.startsWith('conv_local_')) {
       payload.conversationId = conversationId;
@@ -2752,6 +2823,7 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
 
     setInputValue('');
     setUploadedFiles([]);
+    setMapRegion(null);
   };
 
   const handleKeyDown = (e) => {
@@ -2781,20 +2853,33 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
   const bbox = Array.isArray(changeStats?.change_bbox) && changeStats.change_bbox.length === 4
     ? changeStats.change_bbox : null;
 
-  const searchBarElement = (
-    <div className="search-bar-wrapper">
-      <div className={`search-bar ${uploadedFiles.length > 0 ? 'has-files' : ''}`}>
+  const hasAttachment = uploadedFiles.length > 0 || !!mapRegion;
 
-        {uploadedFiles.length > 0 && (
-          <div className="uploaded-files-preview">
-            {uploadedFiles.map((file, i) => (
-              <div className="file-preview-card" key={i}>
-                <div className="remove-file-badge" onClick={() => removeFile(i)}>×</div>
-                <div className="file-thumbnail" style={{ backgroundImage: `url('${file.preview}')` }}></div>
+  const searchBarElement = (
+        <div className="search-bar-wrapper">
+          <div className={`search-bar ${hasAttachment ? 'has-files' : ''}`}>
+            
+            {hasAttachment && (
+              <div className="uploaded-files-preview">
+                {uploadedFiles.map((file, i) => (
+                  <div className="file-preview-card" key={i}>
+                    <div className="remove-file-badge" onClick={() => removeFile(i)}>×</div>
+                    <div className="file-thumbnail" style={{ backgroundImage: `url('${file.preview}')` }}></div>
+                  </div>
+                ))}
+                {mapRegion && (
+                  <div className="file-preview-card region-preview-card">
+                    <div className="remove-file-badge" onClick={removeMapRegion}>×</div>
+                    <div className="region-thumbnail">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                      </svg>
+                      <span>Region</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
         <div className="search-input-row">
           <div
@@ -2824,6 +2909,18 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                 Add from Drive
               </div>
+              <div
+                className="popup-item"
+                onClick={() => {
+                  setIsPopupOpen(false);
+                  setIsMapModalOpen(true);
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                </svg>
+                Select by map
+              </div>
               <div className="popup-item more-uploads">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
                 More uploads
@@ -2840,7 +2937,7 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          {inputValue.trim() !== '' || uploadedFiles.length > 0 ? (
+          {inputValue.trim() !== '' || hasAttachment ? (
             <div
               className="search-send-btn"
               onClick={handleSend}
@@ -3080,7 +3177,7 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
                 {queryText && (
                   <div className="message user-message">{queryText}</div>
                 )}
-                {messages.length > 0 ? (
+                {messages.length > 0 && (
                   messages.map((msg, idx) => (
                     <div
                       key={idx}
@@ -3089,29 +3186,39 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
                       {(msg.role === 'user' || msg.role === 'USER') ? msg.content : renderStructuredText(msg.content)}
                     </div>
                   ))
-                ) : (
-                  isLoading && (
-                    <div className="message ai-message">
-                      Processing your satellite imagery query...
-                    </div>
-                  )
                 )}
 
-                {isLoading && processingNodes.length > 0 && (
-                  <div className="processing-container">
-                    <h3>Processing</h3>
-                    {processingNodes.map((item, index) => (
-                      <div key={`${item.node}-${index}`} className="processing-node">
-                        <span>{item.node}</span>
-                        <span>
-                          {item.status === "completed" && "✓"}
-                          {item.status === "retrying" && "..."}
-                          {item.status !== "completed" &&
-                            item.status !== "retrying" &&
-                            item.status}
-                        </span>
+                {isLoading && (
+                  <div className="message ai-message ml-status-card" style={{ width: '100%', maxWidth: '90%', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#0F172A', fontSize: '13px', marginBottom: '8px' }}>
+                      <span className="status-pulse-dot"></span>
+                      ML Analysis Progress
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {mlStatusHistory.length > 0 ? (
+                        mlStatusHistory.map((item) => (
+                          <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', background: '#FFFFFF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                            <span style={{ fontWeight: '600', color: '#1E293B' }}>
+                              {item.status === 'COMPLETED' ? '✓ ' : '● '}
+                              {item.title}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: item.status === 'COMPLETED' ? '#10B981' : '#00B4D8' }}>
+                              {item.status}
+                              {item.attempt ? ` (Attempt ${item.attempt})` : ''}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>Initializing ML Pipeline...</div>
+                      )}
+                    </div>
+
+                    {mlSessionId && (
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '8px', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                        Session: {mlSessionId}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
@@ -3669,10 +3776,25 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
                           if (idx < timelineStep) stepClass = "done";
                           else if (idx === timelineStep) stepClass = "active";
 
+                          const isCurrentActive = stepClass === "active";
+                          let liveStatusText = "PROCESSING...";
+
+                          if (isCurrentActive && mlStatusPayload?.node) {
+                            const nodeName = String(mlStatusPayload.node).toUpperCase();
+                            const statusVal = String(mlStatusPayload.status || 'PROCESSING').toUpperCase();
+                            if (statusVal === 'RETRYING' || nodeName === 'RETRY') {
+                              const target = mlStatusPayload.target ? String(mlStatusPayload.target).toUpperCase() : nodeName;
+                              const attempt = mlStatusPayload.attempt || 1;
+                              liveStatusText = `RETRYING ${target} (ATTEMPT ${attempt})...`;
+                            } else {
+                              liveStatusText = `${nodeName} → ${statusVal}...`;
+                            }
+                          }
+
                           return (
                             <li key={idx} className={stepClass}>
                               {stepLabel}
-                              {stepClass === "active" && <span className="processing-text">PROCESSING...</span>}
+                              {isCurrentActive && <span className="processing-text">{liveStatusText}</span>}
                             </li>
                           );
                         })}
@@ -3707,6 +3829,13 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
             />
           </aside>
         </div>
+      )}
+
+      {isMapModalOpen && (
+        <MapSelectModal
+          onClose={() => setIsMapModalOpen(false)}
+          onConfirm={handleMapRegionConfirm}
+        />
       )}
     </div>
   );

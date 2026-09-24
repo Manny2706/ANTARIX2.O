@@ -47,7 +47,6 @@ class AnalyzeResult(BaseModel):
     execution_trace: list[Any] = Field(default_factory=list)
     duration_seconds: float | None = None
     stac_metadata: dict[str, Any] | None = None
-    conversation_history: list[dict[str, Any]] = Field(default_factory=list)
     output_image_b64: str | None = Field(
         default=None,
         description="Base64-encoded PNG image of the analyzed satellite AOI (data:image/png;base64,...)",
@@ -109,7 +108,6 @@ class AnalyzeResult(BaseModel):
             execution_trace=state.get("execution_trace", []),
             duration_seconds=state.get("duration_seconds"),
             stac_metadata=clean_stac_meta,
-            conversation_history=state.get("conversation_history", []),
             output_image_b64=None,
         )
 

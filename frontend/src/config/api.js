@@ -6,6 +6,7 @@ export const DEFAULT_USER_ID = import.meta.env.VITE_USER_ID || '70fa21d1-c6c0-47
 export const AUTH_ENDPOINTS = {
   REGISTER: `${API_BASE_URL}/api/auth/register`,
   LOGIN: `${API_BASE_URL}/api/auth/login`,
+  ME: `${API_BASE_URL}/api/auth/me`,
 };
 
 export const HISTORY_ENDPOINTS = {

@@ -3,5 +3,6 @@ import { SOCKET_URL } from "../config/api";
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
-  transports: ["polling", "websocket"],
+  transports: ["polling"],
+  upgrade: false,
 });

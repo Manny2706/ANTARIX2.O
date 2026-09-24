@@ -35,8 +35,10 @@ def test_api_multi_turn_multipart(png_bytes):
         assert body2["session_id"] == session_id
         assert body2["raw_query"] == "what percentage?"
         assert "vegetation" in (body2["resolved_query"] or "").lower()
-        assert len(body2["conversation_history"]) == 1
-        assert body2["conversation_history"][0]["query"] == "Is there vegetation in this image?"
+        # conversation_history is tracked internally (via session_id) but not
+        # echoed back in the API response — it grows unbounded over a long
+        # session and isn't needed by the caller, who already has it.
+        assert "conversation_history" not in body2
 
 
 def test_api_multi_turn_json(png_bytes):

@@ -4,7 +4,7 @@ import { getConversations,getMessages } from '../controllers/history.controller'
 
 const router = Router()
 
-router.get("/conversations", getConversations)
-router.get("/messages/:conversationId", getMessages)
+router.get("/conversations", authMiddleware,getConversations)
+router.get("/messages/:conversationId",getMessages)
 
 export default router

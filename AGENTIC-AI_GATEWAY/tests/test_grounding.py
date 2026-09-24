@@ -117,13 +117,7 @@ def test_grounding_stream_includes_artifact_image(png_bytes):
     assert result["current_task"] == "grounding"
     assert result["artifacts"]
     assert result["artifacts"][0]["kind"] == "grounding_overlay"
-    # The image itself travels as its own small `artifact` event, not inlined
-    # in the (now lean) `result` event.
-    assert result["artifacts"][0]["image_b64"] is None
-
-    artifact = json.loads(by_event["artifact"])
-    assert artifact["kind"] == "grounding_overlay"
-    assert artifact["image_b64"].startswith("data:image/png;base64,")
+    assert result["artifacts"][0]["image_b64"].startswith("data:image/png;base64,")
 
 
 def test_grounding_retry_replaces_prior_overlay(png_file):

@@ -41,7 +41,7 @@ model Message {
   conversationId String
   role           MessageRole
   content        String?
-  imageUrl       String?
+  imageUrl       String[]
   metadata       Json?
   createdAt      DateTime    @default(now())
 

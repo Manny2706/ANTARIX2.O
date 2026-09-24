@@ -25,3 +25,13 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Benchmark evaluation & legacy test scripts
+scripts/evaluate_benchmarks.py
+scripts/generate_exact_response_pdf.py
+scripts/generate_geotiff_guide_pdf.py
+scripts/generate_pdf_report.py
+scripts/run_benchmark_tests.py
+scripts/test_grounding_queries.py
+scripts/test_improved_grounding.py
+scripts/test_rs_vocab.py
