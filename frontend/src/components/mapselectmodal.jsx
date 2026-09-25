@@ -9,7 +9,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import './MapSelectModal.css';
+import './mapselectmodal.css';
 
 // Free satellite basemap — no API key required.
 const SATELLITE_TILE_URL =

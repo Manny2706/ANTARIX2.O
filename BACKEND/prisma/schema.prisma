@@ -7,6 +7,7 @@ datasource db {
   provider = "postgresql"
 }
 
+
 enum MessageRole {
   USER
   ASSISTANT

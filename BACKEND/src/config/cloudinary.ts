@@ -16,7 +16,7 @@ const uploadOnCloudinary = async (image: string): Promise<any> => {
       return null;
     }
 
-    const imageData = `data:image/png;base64,${image}`;
+    const imageData = image.startsWith("data:") ? image : `data:image/png;base64,${image}`;
 
     const response = await cloudinary.uploader.upload(imageData, {
       folder: "satquery/images",
