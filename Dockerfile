@@ -45,24 +45,24 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=7000 \
     API_HOST=0.0.0.0 \
     API_PORT=8000 \
-    VLM_BACKEND=disabled \
-    ML_API_URL=http://127.0.0.1:8000/api/v1/analyze/stream \
+    VLM_BACKEND=local \
+    ML_API_URL=http://0.0.0.0:8000/api/v1/analyze/stream \
     SOCKET_KEY=bgvpit303269bgwb9nishant \
     DB_USER=postgres \
     DB_PASSWORD=postgres \
     DB_NAME=satquery \
-    DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/satquery?schema=public
+    DATABASE_URL=postgresql://postgres:postgres@0.0.0.0:5432/satquery?schema=public
 
 # Install system dependencies: Node.js 20, Nginx, Supervisor, PostgreSQL, OpenSSL, curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
-        ca-certificates \
-        gnupg \
-        build-essential \
-        nginx \
-        supervisor \
-        postgresql \
-        openssl \
+    curl \
+    ca-certificates \
+    gnupg \
+    build-essential \
+    nginx \
+    supervisor \
+    postgresql \
+    openssl \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
@@ -102,7 +102,7 @@ RUN npm run build || true
 
 # Set up Frontend (Nginx static files & proxy)
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-RUN sed -i 's/backend:7000/127.0.0.1:7000/g' /etc/nginx/conf.d/default.conf
+RUN sed -i 's/backend:7000/0.0.0.0:7000/g' /etc/nginx/conf.d/default.conf
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
 
 # Supervisor configuration
