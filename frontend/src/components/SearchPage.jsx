@@ -38,6 +38,39 @@ export default function SearchPage({
   const [rawBackendResponse, setRawBackendResponse] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const conversationIdRef = useRef(conversationId);
+  const timelineNodeMap = {
+    input: 0,
+    validation: 0,
+
+    grounding: 1,
+    query: 1,
+
+    task: 2,
+    specialist: 3,
+
+    analysis: 4,
+    verification: 4,
+
+    evidence: 5,
+
+    response: 6,
+    final: 6,
+  };
+
+  const getTimelineStepFromNode = (node) => {
+    if (!node) return null;
+
+    const normalized = String(node).toLowerCase();
+
+    for (const [key, step] of Object.entries(timelineNodeMap)) {
+      if (normalized.includes(key)) {
+        return step;
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
@@ -61,6 +94,7 @@ export default function SearchPage({
   const [overviewImageMode, setOverviewImageMode] = useState('change');
   const [inputValue, setInputValue] = useState('');
   const [sentFiles, setSentFiles] = useState([]);
+  const [sentRegion, setSentRegion] = useState(null);
   const [processingNodes, setProcessingNodes] = useState([]);
   const fileInputRef = useRef(null);
 
@@ -72,6 +106,7 @@ export default function SearchPage({
     setUploadedFiles([]);
     setMapRegion(null);
     setSentFiles([]);
+    setSentRegion(null);
     setConversationId(null);
     setMlSessionId(null);
     setMlStatusPayload(null);
@@ -615,15 +650,33 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
     return "";
   };
 
-  useEffect(() => {
-    if (!isLoading || analysisComplete) return;
 
-    const interval = setInterval(() => {
-      setTimelineStep(prev => (prev < 6 ? prev + 1 : 6));
-    }, 450);
+  const syncTimelineWithNode = (node, status = 'processing') => {
+    const step = getTimelineStepFromNode(node);
 
-    return () => clearInterval(interval);
-  }, [isLoading, analysisComplete]);
+    if (step === null) return;
+
+    const normalizedStatus = String(status).toLowerCase();
+
+    setTimelineStep(prev => {
+      // Never move backwards
+      if (step < prev) return prev;
+
+      // Completed node -> move to next stage when possible
+      if (
+        normalizedStatus === 'completed' ||
+        normalizedStatus === 'complete' ||
+        normalizedStatus === 'success' ||
+        normalizedStatus === 'done'
+      ) {
+        return Math.min(step + 1, 6);
+      }
+
+      // Currently processing/retrying node
+      return Math.max(prev, step);
+    });
+  };
+
 
   useEffect(() => {
     socket.connect();
@@ -895,19 +948,35 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
 
   const handleSend = async () => {
     const currentQuery = inputValue.trim();
-    if (uploadedFiles.length === 0 && !mapRegion) {
+    const isOngoing = Boolean(conversationId && !conversationId.startsWith('conv_local_') && hasQueried);
+
+    if (!isOngoing && uploadedFiles.length === 0 && !mapRegion) {
       setUploadError('Please upload a satellite image or select a region on the map to start analysis.');
+      return;
+    }
+
+    if (isOngoing && !currentQuery && uploadedFiles.length === 0 && !mapRegion) {
+      setUploadError('Please enter a question, upload a new image, or select a region.');
       return;
     }
 
     const currentFiles = [...uploadedFiles];
     const currentRegion = mapRegion;
+    const activeQuery = currentQuery || (currentRegion ? 'Analyze the satellite imagery for this region' : (currentFiles.length > 0 ? 'Analyze uploaded satellite image' : ''));
     const isLocalId = !conversationId || conversationId.startsWith('conv_local_');
     const newConvId = isLocalId ? `conv_local_${Date.now()}` : conversationId;
 
     setUploadError('');
-    setQueryText(currentQuery);
-    setSentFiles(currentFiles);
+    if (!hasQueried) {
+      setQueryText(activeQuery);
+    }
+    if (currentFiles.length > 0) {
+      setSentFiles(currentFiles);
+      setSentRegion(null);
+    } else if (currentRegion) {
+      setSentRegion(currentRegion);
+      setSentFiles([]);
+    }
     setHasQueried(true);
     setIsLoading(true);
     setAnalysisComplete(false);
@@ -944,14 +1013,26 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
       }
     }
 
+    if (hasQueried) {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'user',
+          content: activeQuery,
+          images: imagesDataUrls.length > 0 ? imagesDataUrls : (currentFiles.length > 0 ? currentFiles.map(f => f.preview) : []),
+          bbox: currentRegion?.bbox || null
+        }
+      ]);
+    }
+
     // Create local history entry with persistent Data URLs
     try {
       const newHistoryItem = {
         id: newConvId,
         userId: currentUserId,
-        title: currentQuery || 'Satellite image analysis',
+        title: activeQuery || 'Satellite image analysis',
         date: new Date().toISOString(),
-        mode: currentFiles.length > 1 ? 'Bi-Temporal' : (currentFiles.length === 1 ? 'Single Image' : 'Single Image'),
+        mode: currentFiles.length > 1 ? 'Bi-Temporal' : (currentRegion ? 'Region AOI' : 'Single Image'),
         confidence: null,
         status: 'PENDING',
         bbox: currentRegion?.bbox || null,
@@ -959,9 +1040,10 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
           {
             id: `msg_user_${Date.now()}`,
             role: 'USER',
-            content: currentQuery || 'Analyze uploaded satellite image',
+            content: activeQuery,
             createdAt: new Date().toISOString(),
-            images: imagesDataUrls.length > 0 ? imagesDataUrls : currentFiles.map(f => f.preview)
+            images: imagesDataUrls.length > 0 ? imagesDataUrls : currentFiles.map(f => f.preview),
+            bbox: currentRegion?.bbox || null,
           }
         ]
       };
@@ -977,7 +1059,7 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
     const payload = {
       key: SOCKET_KEY,
       userId: currentUserId,
-      message: currentQuery,
+      message: activeQuery,
       images: imagesBase64,
     };
 
@@ -1004,18 +1086,19 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
 
   // ---- Backend result (ar.txt shape) derived views ----
   const R = backendResult || {};
+  const totalDuration = durationSeconds ?? R.duration_seconds ?? null;
   const evidenceItems = (Array.isArray(R.evidence) && R.evidence.length) ? R.evidence : evidenceList;
   const traceSteps = (Array.isArray(R.execution_trace) && R.execution_trace.length) ? R.execution_trace : executionTrace;
   const artifacts = Array.isArray(R.artifacts) ? R.artifacts : [];
-  const reflection = R.reflection || null;
-  const totalDuration = R.duration_seconds ?? durationSeconds;
-  const changeMapArtifact = artifacts.find(a => a && a.image_b64) || null;
+  const reflection = (R.reflection && typeof R.reflection === 'object') ? R.reflection : null;
+  const changeMapArtifact = artifacts.find(a => a && a.kind === 'change_map' && a.image_b64) || null;
+  const satelliteCropArtifact = R.output_image_b64 || artifacts.find(a => (a?.artifact_id === 'satellite_crop' || a?.kind === 'optical_source') && a?.image_b64)?.image_b64 || null;
   const artifactForEvidence = (ev) =>
     artifacts.find(a => ev?.evidence_id && a?.artifact_id && a.artifact_id.startsWith(ev.evidence_id)) || null;
   const overallConfidence = R.confidence ?? evidenceItems?.[0]?.confidence;
   const primaryEvidence = evidenceItems?.[0] || null;
   const changeStats = primaryEvidence?.change_stats || null;
-  const sourcePreview = sentFiles.length > 0 ? sentFiles[0].preview : null;
+  const sourcePreview = sentFiles.length > 0 ? sentFiles[0].preview : (satelliteCropArtifact || null);
   const showChangeMap = overviewImageMode === 'change' && !!changeMapArtifact;
   const overviewImage = showChangeMap
     ? changeMapArtifact.image_b64
@@ -1026,30 +1109,30 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
   const hasAttachment = uploadedFiles.length > 0 || !!mapRegion;
 
   const searchBarElement = (
-        <div className="search-bar-wrapper">
-          <div className={`search-bar ${hasAttachment ? 'has-files' : ''}`}>
-            
-            {hasAttachment && (
-              <div className="uploaded-files-preview">
-                {uploadedFiles.map((file, i) => (
-                  <div className="file-preview-card" key={i}>
-                    <div className="remove-file-badge" onClick={() => removeFile(i)}>×</div>
-                    <div className="file-thumbnail" style={{ backgroundImage: `url('${file.preview}')` }}></div>
-                  </div>
-                ))}
-                {mapRegion && (
-                  <div className="file-preview-card region-preview-card">
-                    <div className="remove-file-badge" onClick={removeMapRegion}>×</div>
-                    <div className="region-thumbnail">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                      </svg>
-                      <span>Region</span>
-                    </div>
-                  </div>
-                )}
+    <div className="search-bar-wrapper">
+      <div className={`search-bar ${hasAttachment ? 'has-files' : ''}`}>
+
+        {hasAttachment && (
+          <div className="uploaded-files-preview">
+            {uploadedFiles.map((file, i) => (
+              <div className="file-preview-card" key={i}>
+                <div className="remove-file-badge" onClick={() => removeFile(i)}>×</div>
+                <div className="file-thumbnail" style={{ backgroundImage: `url('${file.preview}')` }}></div>
+              </div>
+            ))}
+            {mapRegion && (
+              <div className="file-preview-card region-preview-card">
+                <div className="remove-file-badge" onClick={removeMapRegion}>×</div>
+                <div className="region-thumbnail">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                  </svg>
+                  <span>Region</span>
+                </div>
               </div>
             )}
+          </div>
+        )}
 
         <div className="search-input-row">
           <div
@@ -1342,6 +1425,14 @@ Change Bounding Box : ${Array.isArray(r.evidence[0].change_stats.change_bbox)
                     {sentFiles.map((f, i) => (
                       <img key={i} src={f.preview} alt="uploaded" style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '12px', objectFit: 'cover' }} />
                     ))}
+                  </div>
+                )}
+                {sentRegion?.bbox && (
+                  <div className="message user-message" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '12px', background: 'rgba(0, 180, 216, 0.12)', border: '1px solid rgba(0, 180, 216, 0.3)', color: '#0077B6', fontSize: '13px', fontWeight: '500' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                    </svg>
+                    <span>Selected Region BBox: [{sentRegion.bbox.map(n => Number(n).toFixed(4)).join(', ')}]</span>
                   </div>
                 )}
                 {queryText && (

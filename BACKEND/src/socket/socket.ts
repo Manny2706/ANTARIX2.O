@@ -19,9 +19,9 @@ const initiateSocketConnection = async (httpServer: HttpServer) => {
         socket.on("message:send", async (data: SocketSendMessage) => {
 
             try {
-                const { key, conversationId, userId, message, images } = data
-                if (!key || !message) {
-                    return socket.emit("error", "Invalid message data")
+                const { key, conversationId, userId, message, images, bbox } = data
+                if (!key) {
+                    return socket.emit("message:error", { message: "Unauthorized: Missing key" })
                 }
                 if (key !== process.env.SOCKET_KEY) {
                     socket.emit("message:error", {
@@ -30,14 +30,32 @@ const initiateSocketConnection = async (httpServer: HttpServer) => {
                     return
                 }
 
+                // Only require image or bbox if starting a brand new conversation
+                if (!conversationId && (!images || images.length === 0) && !bbox) {
+                    socket.emit("message:error", {
+                        message: "Either an image or a map bounding box is required to start an analysis.",
+                    })
+                    return
+                }
+
+                if (!message && (!images || images.length === 0) && !bbox) {
+                    socket.emit("message:error", {
+                        message: "Please enter a message, upload an image, or select a region.",
+                    })
+                    return
+                }
+
+                const queryText = (message && message.trim()) || (bbox ? "Analyze satellite imagery for this region" : (images && images.length > 0 ? "Analyze uploaded satellite image" : ""))
+
                 console.log(" Key verified")
-                console.log(`the message is : ${message} and the key is ${key}`)
+                console.log(`the message is : ${queryText}, bbox: ${JSON.stringify(bbox)}, images: ${images?.length || 0}`)
 
                 await handleMessageSend(socket, {
                     conversationId,
                     userId,
-                    message,
-                    images,
+                    message: queryText,
+                    images: images || [],
+                    bbox,
                 })
             } catch (error) {
                 console.log("ERROR: Error in message send", error)

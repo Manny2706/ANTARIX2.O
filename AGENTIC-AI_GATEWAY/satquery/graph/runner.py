@@ -34,65 +34,107 @@ def build_initial_state(
     session = session_mgr.get_or_create(session_id)
     sid = session.session_id
 
-    # If assets are not supplied in this turn, hydrate from session
     all_images: list[str] = list(images) if images else []
     for path in (optical_image, sar_image, image_t1, image_t2):
         if path and path not in all_images:
             all_images.append(path)
 
-    if not all_images and session.images:
-        all_images = list(session.images)
-    if optical_image is None and session.optical_image:
-        optical_image = session.optical_image
-    if sar_image is None and session.sar_image:
-        sar_image = session.sar_image
-    if image_t1 is None and session.image_t1:
-        image_t1 = session.image_t1
-    if image_t2 is None and session.image_t2:
-        image_t2 = session.image_t2
-    if roi is None and session.roi:
-        roi = session.roi
-    if bbox is None and session.bbox:
-        bbox = session.bbox
-    if stac_metadata is None and session.stac_metadata:
-        stac_metadata = session.stac_metadata
+    new_assets_supplied = bool(
+        images
+        or optical_image
+        or sar_image
+        or image_t1
+        or image_t2
+        or bbox
+    )
 
     resolved_output_b64 = output_image_b64 or (
         stac_metadata.get("image_b64") if isinstance(stac_metadata, dict) else None
     )
-    if resolved_output_b64 is None and session.output_image_b64:
-        resolved_output_b64 = session.output_image_b64
 
-    initial_artifacts: list[dict[str, Any]] = []
-    if resolved_output_b64:
-        initial_artifacts.append(
-            {
-                "artifact_id": "satellite_crop",
-                "kind": "optical_source",
-                "produced_by": "stac",
-                "image_b64": resolved_output_b64,
-            }
+    if not new_assets_supplied:
+        # PURE FOLLOW-UP QUESTION: No new images/bbox sent in this turn.
+        # Hydrate visual assets from the existing session memory.
+        if not all_images and session.images:
+            all_images = list(session.images)
+        if optical_image is None and session.optical_image:
+            optical_image = session.optical_image
+        if sar_image is None and session.sar_image:
+            sar_image = session.sar_image
+        if image_t1 is None and session.image_t1:
+            image_t1 = session.image_t1
+        if image_t2 is None and session.image_t2:
+            image_t2 = session.image_t2
+        if roi is None and session.roi:
+            roi = session.roi
+        if bbox is None and session.bbox:
+            bbox = session.bbox
+        if stac_metadata is None and session.stac_metadata:
+            stac_metadata = session.stac_metadata
+        if resolved_output_b64 is None and session.output_image_b64:
+            resolved_output_b64 = session.output_image_b64
+
+        initial_artifacts: list[dict[str, Any]] = []
+        if resolved_output_b64:
+            initial_artifacts.append(
+                {
+                    "artifact_id": "satellite_crop" if bbox else "optical_source",
+                    "kind": "optical_source",
+                    "produced_by": "stac" if bbox else "upload",
+                    "image_b64": resolved_output_b64,
+                }
+            )
+        elif session.artifacts:
+            initial_artifacts = [a for a in session.artifacts if a.get("kind") == "optical_source"]
+    else:
+        # NEW ASSET(S) SUPPLIED IN THIS TURN:
+        # User uploaded a new image, image pair, or selected a new bbox.
+        # DO NOT carry over old visual assets from previous turn!
+        if not optical_image and not sar_image and not image_t1 and not image_t2 and all_images:
+            if len(all_images) == 1:
+                optical_image = all_images[0]
+            elif len(all_images) >= 2:
+                image_t1 = all_images[0]
+                image_t2 = all_images[1]
+                optical_image = all_images[0]
+
+        # Generate output_image_b64 if not already set (e.g. from newly uploaded file)
+        if not resolved_output_b64 and (optical_image or all_images):
+            target_path = optical_image or all_images[0]
+            try:
+                from PIL import Image
+                from satquery.artifacts import to_data_uri
+                with Image.open(target_path) as img:
+                    resolved_output_b64 = to_data_uri(img)
+            except Exception as exc:
+                logger.warning("Could not encode newly supplied image to data URI: %s", exc)
+
+        initial_artifacts = []
+        if resolved_output_b64:
+            initial_artifacts.append(
+                {
+                    "artifact_id": "satellite_crop" if bbox else "optical_source",
+                    "kind": "optical_source",
+                    "produced_by": "stac" if bbox else "upload",
+                    "image_b64": resolved_output_b64,
+                }
+            )
+
+        # Replace session visual assets with the new imagery
+        session_mgr.update_assets(
+            sid,
+            images=all_images,
+            optical_image=optical_image,
+            sar_image=sar_image,
+            image_t1=image_t1,
+            image_t2=image_t2,
+            roi=roi,
+            bbox=bbox,
+            stac_metadata=stac_metadata,
+            output_image_b64=resolved_output_b64,
+            artifacts=initial_artifacts,
+            replace=True,
         )
-    elif session.artifacts:
-        # Only the base image carries forward as a turn-less asset; overlays
-        # (grounding_overlay, change_map, ...) belong to the turn that produced
-        # them and must not leak into a new turn's artifact list.
-        initial_artifacts = [a for a in session.artifacts if a.get("kind") == "optical_source"]
-
-    # Persist any newly supplied assets to session
-    session_mgr.update_assets(
-        sid,
-        images=all_images,
-        optical_image=optical_image,
-        sar_image=sar_image,
-        image_t1=image_t1,
-        image_t2=image_t2,
-        roi=roi,
-        bbox=bbox,
-        stac_metadata=stac_metadata,
-        output_image_b64=resolved_output_b64,
-        artifacts=initial_artifacts,
-    )
 
     state = {
         "session_id": sid,

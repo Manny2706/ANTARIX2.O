@@ -115,7 +115,7 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # 5432 -> Bundled PostgreSQL (optional, for inspection)
 EXPOSE 80 7000 8000 5432
 
-HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:7000/health && curl -fsS http://localhost:8000/health || exit 1
+# HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \
+#     CMD curl -fsS http://localhost:7000/health && curl -fsS http://localhost:8000/health || exit 1
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

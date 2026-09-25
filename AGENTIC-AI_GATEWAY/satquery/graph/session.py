@@ -283,6 +283,7 @@ class SessionManager:
         stac_metadata: dict[str, Any] | None = None,
         output_image_b64: str | None = None,
         artifacts: list[dict[str, Any]] | None = None,
+        replace: bool = False,
     ) -> None:
         with self._lock:
             session = self._sessions.get(session_id)
@@ -293,26 +294,38 @@ class SessionManager:
                 self._sessions[session_id] = session
 
             session.touch()
-            if images:
-                session.images = list(images)
-            if optical_image is not None:
+            if replace:
+                session.images = list(images) if images else []
                 session.optical_image = optical_image
-            if sar_image is not None:
                 session.sar_image = sar_image
-            if image_t1 is not None:
                 session.image_t1 = image_t1
-            if image_t2 is not None:
                 session.image_t2 = image_t2
-            if roi is not None:
                 session.roi = roi
-            if bbox is not None:
                 session.bbox = bbox
-            if stac_metadata is not None:
                 session.stac_metadata = stac_metadata
-            if output_image_b64 is not None:
                 session.output_image_b64 = output_image_b64
-            if artifacts:
-                session.artifacts = list(artifacts)
+                session.artifacts = list(artifacts) if artifacts else []
+            else:
+                if images:
+                    session.images = list(images)
+                if optical_image is not None:
+                    session.optical_image = optical_image
+                if sar_image is not None:
+                    session.sar_image = sar_image
+                if image_t1 is not None:
+                    session.image_t1 = image_t1
+                if image_t2 is not None:
+                    session.image_t2 = image_t2
+                if roi is not None:
+                    session.roi = roi
+                if bbox is not None:
+                    session.bbox = bbox
+                if stac_metadata is not None:
+                    session.stac_metadata = stac_metadata
+                if output_image_b64 is not None:
+                    session.output_image_b64 = output_image_b64
+                if artifacts:
+                    session.artifacts = list(artifacts)
 
             self._persist_session_to_db_locked(session)
 

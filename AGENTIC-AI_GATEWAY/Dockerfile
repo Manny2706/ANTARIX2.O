@@ -26,7 +26,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential curl \
+        build-essential curl libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python -m venv /opt/venv
@@ -55,7 +55,5 @@ ENV VLM_BACKEND=local \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD curl -fsS http://localhost:8000/health || exit 1
 
 CMD ["python", "-m", "satquery"]

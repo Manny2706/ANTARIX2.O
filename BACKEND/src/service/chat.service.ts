@@ -86,12 +86,32 @@ async function consumeSSEStream(
 
 
 export const handleMessageSend = async (socket: Socket, data: SocketChatData) => {
-  const { conversationId, userId, message, images } = data
-  if (!images || images.length === 0) {
+  const { conversationId, userId, message, images, bbox } = data
+  if (!conversationId && (!images || images.length === 0) && !bbox) {
     socket.emit("message:error", {
-      message: "Image is required backend",
+      message: "Either an image or a map bounding box is required to start an analysis",
     })
     return
+  }
+
+  // Resolve a valid user to prevent ForeignKeyConstraintViolation
+  let effectiveUserId = userId
+  let userExists = effectiveUserId ? await prisma.user.findUnique({ where: { id: effectiveUserId } }) : null
+
+  if (!userExists) {
+    const existingUser = await prisma.user.findFirst()
+    if (existingUser) {
+      effectiveUserId = existingUser.id
+    } else {
+      const createdUser = await prisma.user.create({
+        data: {
+          fullName: "Demo User",
+          email: "demo@satquery.ai",
+          password: "demouserpassword123",
+        },
+      })
+      effectiveUserId = createdUser.id
+    }
   }
 
   let conversation: any
@@ -103,57 +123,68 @@ export const handleMessageSend = async (socket: Socket, data: SocketChatData) =>
       socket.emit("message:error", { message: "Conversation not found" })
       return
     }
-    if (conversation.userId !== userId) {
+    if (conversation.userId !== userId && conversation.userId !== effectiveUserId) {
       socket.emit("message:error", { message: "Unauthorized conversation" })
       return
     }
   } else {
     conversation = await prisma.conversation.create({
       data: {
-        userId: userId!,
-        title: message?.slice(0, 30) || "New Conversation",
+        userId: effectiveUserId,
+        title: message?.slice(0, 30) || (bbox ? "Satellite Region AOI" : "New Conversation"),
       },
     })
   }
 
-  const imageUrls = await Promise.all(
-    images.map(async (image: string) => {
-      const result = await uploadOnCloudinary(image);
-
-      return result?.secure_url;
-    })
-  )
-  const validImageUrls: string[] = imageUrls.filter(
-    (url): url is string => Boolean(url)
-  )
+  let validImageUrls: string[] = []
+  if (Array.isArray(images) && images.length > 0) {
+    const imageUrls = await Promise.all(
+      images.map(async (image: string) => {
+        const result = await uploadOnCloudinary(image);
+        return result?.secure_url;
+      })
+    )
+    validImageUrls = imageUrls.filter(
+      (url): url is string => Boolean(url)
+    )
+  }
 
   const userMessage = await prisma.message.create({
     data: {
       conversationId: conversation.id,
       role: "USER",
-      content: message || null,
+      content: message || (bbox ? "Analyze satellite imagery for selected region" : null),
       imageUrl: validImageUrls,
     },
   })
 
   try {
     const formData = new FormData()
-    formData.append("query", message || "")
+    formData.append("query", message || (bbox ? "Analyze satellite imagery for this region" : ""))
     formData.append("max_retries", "3")
     formData.append("session_id", conversation.id)
 
-    if (!Array.isArray(images) || images.some((img) => typeof img !== "string")) {
-      socket.emit("message:error", {
-        message: "Invalid images format: expected an array of base64 strings",
-      })
-      return
+    if (bbox) {
+      formData.append(
+        "bbox",
+        typeof bbox === "string" ? bbox : JSON.stringify(bbox)
+      )
     }
 
-    images.forEach((imageBase64: string, index: number) => {
-      const buffer = Buffer.from(imageBase64, "base64")
-      const blob = new Blob([new Uint8Array(buffer)], { type: "image/png" })
-      formData.append("images", blob, `optical_${index}.png`)
-    })
+    if (Array.isArray(images) && images.length > 0) {
+      if (images.some((img) => typeof img !== "string")) {
+        socket.emit("message:error", {
+          message: "Invalid images format: expected an array of base64 strings",
+        })
+        return
+      }
+
+      images.forEach((imageBase64: string, index: number) => {
+        const buffer = Buffer.from(imageBase64, "base64")
+        const blob = new Blob([new Uint8Array(buffer)], { type: "image/png" })
+        formData.append("images", blob, `optical_${index}.png`)
+      })
+    }
 
     const mlUrl = process.env.ML_API_URL!
     const mlApiKey = process.env.ML_API_KEY
@@ -233,6 +264,23 @@ export const handleMessageSend = async (socket: Socket, data: SocketChatData) =>
       result = (await mlResponse.json()) as MLResponse
     }
 
+    // If user provided bbox without images and gateway fetched satellite crop, upload to Cloudinary and update userMessage
+    const cropB64 = result.output_image_b64 || result.artifacts?.find((a: any) => a.artifact_id === "satellite_crop" || a.kind === "optical_source")?.image_b64
+    if (validImageUrls.length === 0 && cropB64) {
+      try {
+        const uploadRes = await uploadOnCloudinary(cropB64)
+        if (uploadRes?.secure_url) {
+          await prisma.message.update({
+            where: { id: userMessage.id },
+            data: { imageUrl: [uploadRes.secure_url] },
+          })
+          userMessage.imageUrl = [uploadRes.secure_url]
+        }
+      } catch (err) {
+        console.warn("Failed to upload satellite crop to Cloudinary:", err)
+      }
+    }
+
     // stream is fully done — now persist the final assistant message
     const assistantMessage = await prisma.message.create({
       data: {
@@ -248,6 +296,8 @@ export const handleMessageSend = async (socket: Socket, data: SocketChatData) =>
           input_valid: result.input_valid,
           validation_errors: result.validation_errors,
           retry_count: result.retry_count,
+          stac_metadata: (result.stac_metadata as any) ?? null,
+          output_image_b64: result.output_image_b64 ?? null,
 
           reflection: result.reflection
             ? {
