@@ -357,14 +357,45 @@ docker run -d --name antarix-postgres -p 5432:5432 -e POSTGRES_DB=satquery -e PO
 
 #### 2. Agentic AI Gateway
 ```bash
+# 1. Navigate to directory
 cd AGENTIC-AI_GATEWAY
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On Linux/macOS:
-# source venv/bin/activate
 
+# 2. Allow script execution in current PowerShell session
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+
+# 3. Create virtual environment
+python -m venv venv
+
+# 4. Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# 5. Upgrade pip tooling
+python -m pip install --upgrade pip setuptools wheel
+
+# 6. PyTorch + Torchvision (CUDA 12.4 for NVIDIA GPU)
+# For CPU only, change URL to: https://download.pytorch.org/whl/cpu
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# 7. Core backend (FastAPI, LangGraph, Groq, Pydantic)
 pip install -r requirements.txt
+
+# 8. Vision / ML (Transformers, Accelerate, Qwen-VL-utils, SAM + 4-bit bitsandbytes)
+pip install -r requirements-ml.txt
+pip install bitsandbytes
+
+# 9. Geo-spatial specialist tools (Rasterio, Pyproj)
+pip install -r requirements-geo.txt
+
+# 10. Development & test tooling (pytest, pytest-asyncio)
+pip install -r requirements-dev.txt
+
+# 11. Editable install of satquery without re-evaluating dependencies
+pip install --no-deps -e .
+
+# 12. Create .env configuration file
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+
+# 13. Run the Agentic AI Gateway
 uvicorn satquery.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
