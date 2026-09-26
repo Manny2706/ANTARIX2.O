@@ -63,7 +63,7 @@ graph TD
 
     subgraph Intelligence ["AI / ML Engine"]
         LLM["Cloud LLMs\n(Groq / OpenRouter)"]
-        VLM["Local Vision-Language Models\n(Qwen2-VL-7B / ConfigILM)"]
+        VLM["Local Vision-Language Models\n(Qwen2-VL-2B / ConfigILM)"]
         Grounding["Spatial Grounding & Masking\n(Segment Anything Model / BBox Engine)"]
     end
 
@@ -238,18 +238,17 @@ graph LR
 
 ## Hardware & System Requirements
 
-Depending on whether you run **ANTARIX 2.O** in **Cloud LLM Mode** (Groq / OpenRouter) or **Local GPU Accelerated VLM Mode** (Qwen2-VL 7B with 4-bit quantization), select the appropriate hardware configuration:
+Depending on whether you run **ANTARIX 2.O** in local or recommended GPU mode, select the appropriate hardware configuration:
 
-| Component | Minimum Spec (Cloud LLM / CPU Mode) | Recommended Spec (Local GPU VLM Mode) |
+| Component | Minimum Spec  | Recommended Spec |
 | :--- | :--- | :--- |
-| **Processor (CPU)** | 4-Core x86_64 / ARM64 (Intel i5/i7, Ryzen 5, Apple M1/M2) | 8-Core x86_64 (Intel i7/i9 12th+ Gen, Ryzen 7/9 5000+) |
-| **System Memory (RAM)**| 8 GB RAM (16 GB recommended for multi-container dev) | 16 GB – 32 GB DDR4/DDR5 RAM |
-| **Graphics Card (GPU)**| Not Required (Cloud Groq API / OpenRouter inference) | **NVIDIA GPU with CUDA support** (RTX 3060/4060, RTX 3080/4080, T4, A100) |
-| **GPU VRAM** | N/A | **8 GB VRAM Minimum** (12 GB+ VRAM recommended for 4-bit Qwen2-VL 7B) |
-| **CUDA Driver** | N/A | **CUDA 12.0+** (PyTorch 2.4+ with CUDA 12.4 wheels) |
-| **Storage** | 10 GB Available SSD Storage | 30 GB NVMe SSD Storage (for local VLM weights & geospatial datasets) |
-| **Operating System** | Windows 10/11, Linux (Ubuntu 22.04+), macOS | Windows 11 (PowerShell 7+ / WSL2), Linux (Ubuntu 22.04 LTS) |
-| **Software Stack** | Docker 24+, Node.js 18+, Python 3.11+ | Docker 24+ with NVIDIA Container Toolkit, Python 3.11+, Node.js 18+ |
+| **Processor (CPU)** | 4-Core / 6-Core x86_64 (Intel i5/i7 10th+ Gen, Ryzen 5) | 8-Core x86_64 (Intel i7/i9 12th+ Gen, Ryzen 7/9 5000+) |
+| **System Memory (RAM)**| 8 GB – 16 GB RAM | 16 GB – 32 GB DDR4/DDR5 RAM |
+| **Graphics Card (GPU)**| **NVIDIA GeForce RTX 2050** (or GTX 1650 / RTX 3050) | **NVIDIA RTX 3060 / 4060 / RTX 3080 / 4080 / T4 / A100** |
+| **GPU VRAM** | **4 GB VRAM Minimum** (4-bit Quantization via `bitsandbytes`) | **6 GB VRAM** |
+| **Storage** | 10 GB Available SSD Storage | 20 GB NVMe SSD Storage |
+| **Operating System** | Windows 10/11 (PowerShell / WSL2), Linux | Windows 11 (PowerShell 7+ / WSL2), Linux (Ubuntu 22.04 LTS) |
+| **Software Stack** | Python 3.11+, Node.js 18+, PyTorch + CUDA | Docker 24+ with NVIDIA Container Toolkit, Python 3.11+, Node.js 18+ |
 
 ---
 
