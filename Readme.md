@@ -1,57 +1,268 @@
 # 🛰️ ANTARIX 2.O — Multi-Agent Satellite Imagery AI Platform
 
-An end-to-end intelligent satellite analysis platform connecting a LangGraph-powered **Agentic AI Gateway**, a real-time **Node.js/Express Backend** with Socket.IO & Prisma ORM, and an interactive **React + Leaflet + Three.js Frontend**.
+> **Hackathon-Ready Intelligent Earth Observation & Satellite Visual QA Platform**  
+> *Powered by LangGraph Agentic Orchestration, Fine-Tuned Vision-Language Models (Qwen2-VL / ConfigILM), Real-Time SSE/Socket.IO Streaming, and Interactive 2D/3D Geospatial UI.*
 
 ---
 
-## 🏗️ Architecture & Communication Flow
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agentic%20AI-FF6F00?logo=langchain&logoColor=white)](https://www.langchain.com/langgraph)
+[![Node.js](https://img.shields.io/badge/Node.js-v20%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Prisma](https://img.shields.io/badge/Prisma-7.0-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (React / Vite)                  │
-│             Port: 3000 (Docker Host) / 80 (Container)       │
-│           Interactive Leaflet Map + 3D Three.js UI          │
-└──────────────┬──────────────────────────────▲───────────────┘
-               │ HTTP REST (/api/auth, /api/history)          
-               │ Socket.IO (message:send, location:send)      
-               ▼                                              
-┌─────────────────────────────────────────────────────────────┐
-│                 Backend (Node.js + Express 5)               │
-│                          Port: 7000                         │
-│        - Authentication & JWT Session Management            │
-│        - Real-Time Socket.IO Streaming                      │
-│        - Prisma ORM (v7) Schema Synchronization             │
-└──────────────┬──────────────────────────────▲───────────────┘
-               │                              │
-     SQL Query │                              │ Multipart SSE Stream
-               ▼                              │ (/api/v1/analyze/stream)
-┌──────────────────────────────┐ ┌────────────┴────────────────┐
-│     PostgreSQL Database      │ │      Agentic AI Gateway     │
-│           (v16-alpine)       │ │     (FastAPI + LangGraph)   │
-│           Port: 5432         │ │          Port: 8000         │
-│  - User Accounts             │ │  - Routing & Orchestration  │
-│  - Analysis Conversations    │ │  - Groq / OpenRouter LLMs   │
-│  - Message Logs & Metadata   │ │  - Qwen2-VL Local Vision    │
-└──────────────────────────────┘ └─────────────────────────────┘
+---
+
+## 🏆 Hackathon Executive Summary
+
+**ANTARIX 2.O** solves a critical challenge in modern Earth Observation (EO): **extracting rapid, multi-modal, and spatial insights from high-resolution optical and Synthetic Aperture Radar (SAR) satellite imagery without requiring specialized GIS expertise.**
+
+Traditional satellite analysis relies on manual photo-interpretation, fragmented GIS software, and static script execution. **ANTARIX 2.O** introduces an **Autonomous Multi-Agent Intelligence System** that breaks down natural language geospatial queries, routes tasks to specialized AI agents, executes vision-language inference, performs change detection across multi-temporal timestamps, and grounds objects spatially on an interactive 2D Leaflet and 3D Three.js canvas in real-time.
+
+---
+
+## 💡 Key Innovations & Core Features
+
+- 🧠 **Autonomous Multi-Agent Orchestration (LangGraph)**:
+  Uses a dynamic **Supervisor-Specialist pattern** with multi-step reasoning, evidence aggregation, and self-correcting **Verification & Reflection loops**.
+- 🛰️ **Multi-Spectral & Multi-Temporal Analysis**:
+  Supports single-frame visual question answering, bi-temporal change detection ($T_1$ vs $T_2$), optical-SAR cross-modal reasoning, and GIS spatial grounding.
+- 🎯 **Fine-Tuned Satellite Vision Models**:
+  Integrates custom fine-tuned **Qwen2-VL** and **ConfigILM** models trained on **BigEarthNet Sentinel-1 (SAR)** and **Sentinel-2 (Optical)** datasets using PEFT/LoRA and 4-bit quantization (`bitsandbytes`).
+- ⚡ **Real-Time SSE & WebSocket Event Streaming**:
+  Streams node execution steps, intermediate reasoning traces, and grounding outputs live to the user interface via Server-Sent Events (SSE) and Socket.IO.
+- 🗺️ **Interactive 2D/3D Geospatial UI**:
+  React 19 frontend featuring dual Leaflet map layers, dynamic spatial bounding-box overlay selection, layer controls, and 3D Three.js visualizers.
+- 🐳 **Production-Grade Microservices Architecture**:
+  Fully containerized stack powered by Docker Compose, automated database synchronization via Prisma ORM v7, and FastAPI OpenAPI documentation.
+
+---
+
+## 🏗️ System Architecture & Mermaid Diagrams
+
+### 1. High-Level System Microservices Architecture
+
+```mermaid
+graph TD
+    subgraph Client ["Client Layer"]
+        UI["React 19 + Vite Frontend\n(Leaflet 2D + Three.js 3D Canvas)\nPort: 3000"]
+    end
+
+    subgraph API Gateway ["Backend & Gateway Services"]
+        BE["Node.js Express 5 Backend\n(JWT Auth + Socket.IO + Prisma ORM)\nPort: 7000"]
+        GW["Agentic AI Gateway\n(FastAPI + LangGraph Engine)\nPort: 8000"]
+    end
+
+    subgraph Storage ["Data Layer"]
+        DB[("PostgreSQL Database v16\nPort: 5432")]
+    end
+
+    subgraph Intelligence ["AI / ML Engine"]
+        LLM["Cloud LLMs\n(Groq / OpenRouter)"]
+        VLM["Local Vision-Language Models\n(Qwen2-VL-7B / ConfigILM)"]
+        Grounding["Spatial Grounding & Masking\n(Segment Anything Model / BBox Engine)"]
+    end
+
+    UI -->|"HTTP REST & Socket.IO"| BE
+    UI -->|"SSE Event Stream (/api/v1/analyze/stream)"| GW
+    BE -->|"Prisma ORM (Users & Messages)"| DB
+    GW -->|"REST API Callbacks & Verification"| BE
+    GW -->|"Multi-Agent Prompt Calls"| LLM
+    GW -->|"Visual QA & Feature Extraction"| VLM
+    GW -->|"Bounding Box & Bounding Mask Extraction"| Grounding
 ```
 
 ---
 
-## 🚀 Quick Start with Docker
+### 2. LangGraph Multi-Agent Execution State Machine
+
+```mermaid
+graph TD
+    START([User Query & Image Input]) --> CM["Context Manager\n(State Initialization)"]
+    CM --> IV{"Input Validation"}
+    
+    IV -- "Invalid Input" --> AS["Answer Synthesis"]
+    IV -- "Valid Input" --> SUP["Supervisor Agent\n(Dynamic Router)"]
+    
+    SUP -- "Visual QA / Scene Description" --> IA["Image Analysis Specialist"]
+    SUP -- "Multi-Temporal Comparison" --> CD["Change Detection Specialist"]
+    SUP -- "RGB + SAR Sensor Fusion" --> CM_AGENT["Cross-Modal Specialist"]
+    SUP -- "Bounding Box & Segmentation" --> GND["Spatial Grounding Specialist"]
+    SUP -- "GIS & Area Calculation" --> GEO["Geo-Spatial Specialist"]
+    SUP -- "Satellite Metadata Search" --> RET["Retrieval / RAG Specialist"]
+
+    IA --> EP["Evidence Pool Aggregator"]
+    CD --> EP
+    CM_AGENT --> EP
+    GND --> EP
+    GEO --> EP
+    RET --> EP
+
+    EP --> VF["Verification Node"]
+    VF --> REF{"Reflection & Quality Evaluator"}
+
+    REF -- "Needs Retry / Clarification" --> RETRY["Retry Handler"]
+    RETRY --> SUP
+
+    REF -- "Validated Quality" --> AS
+    AS --> END_NODE([Final Response & Bounding Box Payload Stream])
+```
+
+---
+
+### 3. Real-Time Data & SSE Event Streaming Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / Client UI
+    participant FE as React Frontend
+    participant BE as Express Backend
+    participant GW as Agentic AI Gateway
+    participant LG as LangGraph State Machine
+    participant DB as PostgreSQL
+
+    User->>FE: Select Satellite Region / Upload Image & Enter Prompt
+    FE->>BE: POST /api/conversations (Create Conversation Session)
+    BE->>DB: Save Conversation Metadata
+    BE-->>FE: Return Session ID
+    
+    FE->>GW: POST /api/v1/analyze/stream (FormData + Query + BBox)
+    GW-->>FE: 200 OK (Content-Type: text/event-stream)
+    
+    GW->>LG: Initialize SatQueryState & Launch Graph Execution
+    
+    loop Dynamic Node Execution Trace
+        LG->>GW: Node Start / Progress Event
+        GW-->>FE: SSE Event: event='progress' (Node: supervisor/specialist)
+        FE->>User: Render Real-Time Agent Thinking Step in UI
+    end
+    
+    LG->>GW: Synthesis Complete (State Verified)
+    GW-->>FE: SSE Event: event='result' (JSON Answer + Bounding Boxes)
+    FE->>BE: POST /api/history/message (Sync Assistant Message)
+    BE->>DB: Save Message & Metadata JSON
+    FE->>User: Display Synthesized Answer + Draw BBox Overlay on Map
+```
+
+---
+
+### 4. Database Entity-Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    User ||--o{ Conversation : "owns"
+    Conversation ||--o{ Message : "contains"
+
+    User {
+        string id PK "UUID v4"
+        string fullName "User Full Name"
+        string email UK "Unique Email Address"
+        string password "Hashed Password"
+        datetime createdAt "Timestamp"
+        datetime updatedAt "Timestamp"
+    }
+
+    Conversation {
+        string id PK "UUID v4"
+        string userId FK "Foreign Key -> User.id"
+        string title "Conversation Title"
+        datetime createdAt "Timestamp"
+        datetime updatedAt "Timestamp"
+    }
+
+    Message {
+        string id PK "UUID v4"
+        string conversationId FK "Foreign Key -> Conversation.id"
+        enum role "USER | ASSISTANT"
+        string content "Message Text Payload"
+        string[] imageUrl "Array of Image Paths/URLs"
+        json metadata "Agent Trace, BBox Coordinates, GeoJSON"
+        datetime createdAt "Timestamp"
+    }
+```
+
+---
+
+### 5. Model Fine-Tuning & Training Pipeline Architecture
+
+```mermaid
+graph LR
+    subgraph Data Sources ["Satellite Datasets"]
+        BEN_S1["BigEarthNet Sentinel-1\n(SAR Dual Polarity: VV/VH)"]
+        BEN_S2["BigEarthNet Sentinel-2\n(12 Multi-Spectral Bands)"]
+    end
+
+    subgraph Preprocessing ["Data Pipeline"]
+        TAR["Tar/Zst Extractor"]
+        PQ["Metadata Parquet Parser"]
+        NORM["Radiometric Normalization & Band Stacking"]
+    end
+
+    subgraph FineTuning ["PEFT / LoRA Training"]
+        MODEL["Qwen2-VL / ConfigILM"]
+        BNB["BitsAndBytes 4-bit Quantization"]
+        LORA["LoRA Adapter Weights (Rank 16, Alpha 32)"]
+    end
+
+    subgraph Export ["Artifact Deployment"]
+        CKPT["Checkpoints & Weights"]
+        GW_LOAD["Inference Engine (VLM Backend)"]
+    end
+
+    BEN_S1 --> TAR
+    BEN_S2 --> TAR
+    TAR --> PQ --> NORM
+    NORM --> MODEL
+    BNB --> MODEL
+    LORA --> MODEL
+    MODEL --> CKPT --> GW_LOAD
+```
+
+---
+
+## 🎯 Hackathon Track Alignment
+
+| Track / Category | Features & Alignment |
+| :--- | :--- |
+| 🤖 **AI & Agentic Systems** | Autonomous multi-agent LangGraph workflow featuring supervisor routing, specialist execution, verification, and reflection loops. |
+| 🛰️ **Geospatial & Earth Observation** | Multi-spectral Sentinel-2 & Sentinel-1 SAR imagery ingestion, bi-temporal change detection, bounding box spatial grounding, dynamic Leaflet & 3D canvas map integration. |
+| ⚡ **Real-Time Interactive Apps** | Server-Sent Events (SSE) streaming for live agent reasoning step-by-step updates and real-time Socket.IO synchronization. |
+| 🌍 **Disaster Response & Urban Planning** | Rapid identification of flood areas, deforestation zones, urban growth, and infrastructure damage assessment. |
+
+---
+
+## 🚀 Quick Start & Deployment Guide
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v24.0+)
+- [Git](https://git-scm.com/)
+- Python 3.11+ (Optional, for native dev)
+- Node.js 20+ (Optional, for native dev)
+
+---
 
 ### Option 1: Docker Compose (Recommended)
 
-To run the complete interconnected project with all microservices:
+Run the full interconnected stack with a single command:
 
 ```bash
-# 1. Clone repository (if not already done)
+# 1. Clone repo
 git clone https://github.com/Manny2706/ANTARIX2.O.git
 cd ANTARIX2.O
 
-# 2. Provide your Groq api key in .env
-# Edit .env and set GROQ_API_KEY=your_key_here
+# 2. Configure Environment Variables
+# Copy template env file and set your API keys
+cp .env.example .env
 
-# 3. Build and launch all services
+# Edit .env to set GROQ_API_KEY if using cloud LLM inference:
+# GROQ_API_KEY=gsk_your_groq_api_key_here
+
+# 3. Build and launch all microservices
 docker compose up --build
 ```
 
@@ -60,104 +271,208 @@ To run in detached background mode:
 docker compose up -d --build
 ```
 
-To stop all services:
+To stop all running services:
 ```bash
 docker compose down
 ```
 
 ---
 
-### Option 2: Single All-in-One Docker Container
+### Option 2: Unified All-in-One Container
 
-If you prefer building and running the entire project within a single unified container:
+Build and run all services in a single unified container managed by `supervisord`:
 
 ```bash
-docker build -t antarix-app .
-docker run -p 3000:80 -p 7000:7000 -p 8000:8000 antarix-app
+docker build -t antarix-unified .
+docker run -p 3000:80 -p 7000:7000 -p 8000:8000 --env-file .env antarix-unified
 ```
 
 ---
 
-## 🌐 Service Ports & Access Points
+### Option 3: Local Developer Setup (Native)
 
-| Service | Port (Host) | Description | Health Check |
-| :--- | :--- | :--- | :--- |
-| **Frontend Web App** | `http://localhost:3000` | React UI for satellite analysis & maps | `http://localhost:3000/health` |
-| **Backend REST & Socket** | `http://localhost:7000` | Express REST API & Socket.IO server | `http://localhost:7000/health` |
-| **Agentic AI Gateway** | `http://localhost:8000` | FastAPI Multi-Agent pipeline & Docs | `http://localhost:8000/health` |
-| **Gateway Swagger Docs** | `http://localhost:8000/docs` | Interactive OpenAPI documentation | - |
-| **PostgreSQL Database** | `localhost:5432` | Postgres 16 data store | `pg_isready` |
+#### 1. Database Setup
+```bash
+docker run -d --name antarix-postgres -p 5432:5432 -e POSTGRES_DB=satquery -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+```
+
+#### 2. Agentic AI Gateway
+```bash
+cd AGENTIC-AI_GATEWAY
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+# source venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn satquery.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 3. Backend Service
+```bash
+cd BACKEND
+npm install
+npx prisma db push
+npm run dev
+```
+
+#### 4. Frontend Web App
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 
-## 🔑 Key Environment Variables
+## 🌐 Service Access Points & Health Checks
 
-Configurations are defined in [`.env`](file:///.env) (and sample in [`.env.example`](file:///.env.example)):
+| Service | Host URL | Description | Health Endpoint |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web App** | `http://localhost:3000` | Interactive React 19 UI with 2D Leaflet & 3D Three.js | `http://localhost:3000` |
+| **Express Backend** | `http://localhost:7000` | REST API, Auth, Socket.IO & Prisma ORM | `http://localhost:7000/health` |
+| **Agentic AI Gateway** | `http://localhost:8000` | FastAPI Multi-Agent Engine | `http://localhost:8000/health` |
+| **OpenAPI / Swagger Docs** | `http://localhost:8000/docs` | Interactive API documentation | - |
+| **PostgreSQL Database** | `localhost:5432` | Data store for users & conversation history | `pg_isready` |
+
+---
+
+## 🔑 Environment Variables Reference (`.env`)
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `FRONTEND_PORT` | `3000` | Host port for the Frontend web application |
-| `BACKEND_PORT` | `7000` | Host port for the Express backend |
-| `GATEWAY_PORT` | `8000` | Host port for the Python AI Gateway |
-| `DB_PORT` | `5432` | Host port for PostgreSQL |
-| `DB_USER` | `postgres` | PostgreSQL username |
-| `DB_PASSWORD` | `postgres` | PostgreSQL password |
-| `DB_NAME` | `satquery` | PostgreSQL database name |
-| `GROQ_API_KEY` | *(empty)* | Optional API key for Groq LLM inference |
-| `GROQ_MODEL` | `openai/gpt-oss-120b` | Primary Groq model ID |
-| `OPENROUTER_API_KEY` | *(empty)* | Optional fallback API key |
-| `VLM_BACKEND` | `disabled` | `disabled` (CPU default) or `local` (GPU) |
-| `SOCKET_KEY` | `bgvpit303269bgwb9nishant` | Shared authorization key for WebSocket events |
-| `JWT_SECRET` | *(preset)* | Secret key used for signing authentication tokens |
+| `FRONTEND_PORT` | `3000` | Port for the React frontend application |
+| `BACKEND_PORT` | `7000` | Port for the Express backend REST & Socket server |
+| `GATEWAY_PORT` | `8000` | Port for the Python FastAPI Agentic Gateway |
+| `DB_PORT` | `5432` | Port for PostgreSQL database |
+| `DB_USER` | `postgres` | Database username |
+| `DB_PASSWORD` | `postgres` | Database password |
+| `DB_NAME` | `satquery` | Database name |
+| `GROQ_API_KEY` | `""` | Groq API Key for fast LLM inference |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | Selected Groq LLM model |
+| `OPENROUTER_API_KEY` | `""` | Optional OpenRouter API Key fallback |
+| `VLM_BACKEND` | `disabled` | Set to `local` for local PyTorch GPU inference or `disabled` for CPU/cloud mode |
+| `JWT_SECRET` | `antarix-super-secret-jwt-key` | Secret key for signing authentication tokens |
+| `SOCKET_KEY` | `bgvpit303269bgwb9nishant` | Shared authorization secret for WebSocket events |
 
 ---
 
-## 🧪 Service Verification & Smoke Testing
+## 🔌 API & Event Streaming Specification
 
-### 1. Test Agentic AI Gateway
-```bash
-curl http://localhost:8000/health
-```
-Response:
-```json
-{"status":"ok","version":"0.1.0","vlm_backend":"disabled","vlm_model_id":"...","vlm_loaded":false,"segmenter_backend":"disabled"}
-```
+### 1. Synchronous Analysis Endpoint (`POST /api/v1/analyze`)
+Sends a natural language query alongside satellite imagery files or bounding box coordinates.
 
-### 2. Test Backend Microservice
-```bash
-curl http://localhost:7000/health
-```
-Response:
-```json
-{"status":"ok","message":"server is Healthy"}
-```
-
-### 3. Test Frontend Application
-Open your browser at [http://localhost:3000](http://localhost:3000) to view the application.
+- **URL**: `http://localhost:8000/api/v1/analyze`
+- **Content-Type**: `multipart/form-data`
+- **Parameters**:
+  - `query` (text): Question or instruction (e.g., *"Identify urban expansion and water bodies in this region"*).
+  - `optical` (file): Sentinel-2 RGB multi-spectral image file.
+  - `sar` (file): Sentinel-1 SAR image file.
+  - `image_t1` (file): Time-1 satellite image for change detection.
+  - `image_t2` (file): Time-2 satellite image for change detection.
+  - `bbox` (string): Bounding box `[min_lon, min_lat, max_lon, max_lat]`.
 
 ---
 
-## 📁 Repository Structure
+### 2. Server-Sent Events (SSE) Streaming (`POST /api/v1/analyze/stream`)
+Provides real-time event streaming of multi-agent reasoning steps.
+
+- **URL**: `http://localhost:8000/api/v1/analyze/stream`
+- **Stream Events**:
+  - `start`: Graph execution initialized.
+  - `progress`: Agent node step completion trace (`node_name`, `thinking_trace`, `timestamp`).
+  - `result`: Final answer synthesis payload containing text, confidence, bounding boxes, and image artifacts.
+  - `error`: Error payload detailing failure reason.
+
+```json
+// SSE Progress Event Example
+event: progress
+data: {
+  "node": "change_detection",
+  "status": "completed",
+  "details": "Calculated NDVI differential matrix between T1 and T2 imagery.",
+  "confidence": 0.94
+}
+```
+
+---
+
+## 🧠 Model Training & Fine-Tuning Artifacts
+
+The system includes fine-tuning workflows in [`MODEL_TRAINING/satquery.ipynb`](file:///c:/Users/mayan/Desktop/ANTARIX-SATQUERY_AI/MODEL_TRAINING/satquery.ipynb):
+
+1. **Dataset Integration**:
+   - **BigEarthNet-S1**: Sentinel-1 SAR imagery (VV and VH dual-polarization bands).
+   - **BigEarthNet-S2**: Sentinel-2 multi-spectral optical imagery (12 spectral bands).
+2. **Techniques Applied**:
+   - **PEFT / LoRA (Low-Rank Adaptation)** for efficient parameter update.
+   - **BitsAndBytes 4-Bit NormalFloat Quantization** for memory-efficient training on consumer GPUs.
+   - **ConfigILM / Qwen2-VL** multimodal vision-language architectures.
+
+---
+
+## 🎬 Hackathon Demo Walkthrough & Presentation Guide
+
+For hackathon judges and live presentations, follow this 5-step demo script:
+
+1. **Step 1 — Platform Overview & Map Initialization**:
+   Open `http://localhost:3000`. Show the interactive Leaflet map interface, tile selection, and layer controls.
+2. **Step 2 — Interactive Region Selection**:
+   Draw a bounding box over a coastal or urban area on the Leaflet map.
+3. **Step 3 — Multi-Agent Query Dispatch**:
+   Enter prompt: *"Analyze the water bodies and detect construction changes between earlier and recent satellite passes."*
+4. **Step 4 — Real-Time Agent Thinking Stream**:
+   Highlight the UI **Agent Thinking Panel**. Point out how the **Supervisor Agent** routes the task to **Image Analysis**, **Change Detection**, and **Spatial Grounding** specialists in real-time.
+5. **Step 5 — Grounded Output & Visual Bounding Boxes**:
+   Show the final answer response alongside visual bounding boxes drawn directly on the 2D map overlay and 3D terrain canvas.
+
+---
+
+## 📁 Project Directory Structure
 
 ```text
-ANTARIX2.O/
+ANTARIX-SATQUERY_AI/
 ├── AGENTIC-AI_GATEWAY/       # Python FastAPI + LangGraph AI pipeline
-│   ├── satquery/             # Multi-agent LangGraph workflow
-│   ├── Dockerfile            # Gateway Dockerfile
+│   ├── satquery/             # Multi-agent LangGraph engine & nodes
+│   │   ├── api/              # REST & SSE streaming routers
+│   │   ├── graph/            # LangGraph builder, supervisor, and specialist nodes
+│   │   ├── geospatial/       # GIS calculation utilities & bounding box logic
+│   │   ├── vlm/              # Local VLM / Qwen2-VL inference module
+│   │   └── segmentation/     # Segmentation & masking utilities
+│   ├── Dockerfile            # Gateway container build specification
 │   └── requirements.txt      # Python dependencies
 ├── BACKEND/                  # Express 5 + TypeScript + Socket.IO + Prisma
-│   ├── src/                  # Express controllers, routes, socket & services
-│   ├── prisma/               # Prisma 7 schema and migrations
-│   ├── Dockerfile            # Backend Dockerfile
-│   └── docker-entrypoint.sh  # Auto db sync and server launcher
+│   ├── src/                  # Controllers, routes, socket server, and services
+│   ├── prisma/               # Database schema and migration files
+│   ├── Dockerfile            # Backend container build specification
+│   └── docker-entrypoint.sh  # Automatic DB migrations & launcher script
 ├── frontend/                 # React 19 + Vite + Leaflet + Three.js
-│   ├── src/                  # Components, map viewer, socket client
-│   ├── nginx.conf            # Nginx SPA & reverse proxy configuration
-│   └── Dockerfile            # Multi-stage frontend Dockerfile
-├── docker-compose.yml        # Multi-service container orchestrator
+│   ├── src/                  # UI components, interactive map viewer, SSE client
+│   │   └── components/       # Dashboard, SearchPage, MapSelectModal components
+│   ├── nginx.conf            # Reverse proxy & static SPA config
+│   └── Dockerfile            # Multi-stage frontend container build
+├── MODEL_TRAINING/           # Model fine-tuning notebooks & artifacts
+│   ├── satquery.ipynb        # Jupyter notebook for BigEarthNet PEFT/LoRA fine-tuning
+│   └── output.png            # Model training output visual proof
+├── docker-compose.yml        # Multi-service microservice orchestrator
 ├── Dockerfile                # Root all-in-one unified container
-├── .dockerignore             # Global build ignore rules
 ├── .env.example              # Template environment configuration
-├── .env                      # Default local environment configuration
+├── supervisord.conf          # Process manager configuration for unified container
 └── Readme.md                 # Project documentation
 ```
+
+---
+
+## 🔮 Vision & Future Roadmap
+
+- 🛰️ **Direct Copernicus & Sentinel Hub API Ingestion**: Live streaming satellite data directly into agent memory.
+- 🌐 **SAR Multi-Polarization Polarization Decomposition**: Enhanced flood and canopy penetration via polarimetric SAR analysis.
+- ⚡ **Edge AI Nanosatellite Deployment**: Quantized model export for on-satellite inference via ONNX and TensorRT.
+- 🤝 **Collaborative Multi-User GIS Rooms**: Real-time collaborative annotation powered by Socket.IO.
+
+---
+
+<p align="center">
+  <b>Built with ❤️ for Earth Observation, Geospatial AI, and Hackathons worldwide.</b>
+</p>

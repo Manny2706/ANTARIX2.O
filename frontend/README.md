@@ -1,16 +1,36 @@
-# React + Vite
+# 🗺️ ANTARIX 2.O — Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interactive **React 19 + Vite** Web Application featuring dual **Leaflet 2D maps**, **Three.js 3D terrain canvas**, real-time **Server-Sent Events (SSE)** thinking stream UI, and **Socket.IO** integration for satellite imagery analysis.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Key Features
 
-## React Compiler
+- **Interactive Leaflet Map Canvas**: Select satellite regions, draw bounding boxes, and view object grounding bounding overlays.
+- **Three.js 3D Canvas**: Visualize terrain and spatial target highlights.
+- **Real-Time Agent Thinking Stream**: Receive step-by-step reasoning progress directly from the Agentic AI Gateway via SSE.
+- **Multi-Modal Image Upload**: Upload Sentinel-2 Optical (RGB) and Sentinel-1 SAR imagery alongside $T_1$ vs $T_2$ bi-temporal comparison frames.
+- **Socket.IO Chat Sync**: Live session history synchronization with the Express backend.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- **Framework**: React 19 + Vite 6
+- **Maps & 3D**: Leaflet, React-Leaflet, Three.js, Lucide-React
+- **Styling**: CSS Modules / Custom Responsive Design System
+- **Networking**: Axios, Fetch API (SSE Stream Reader), Socket.IO-client
+
+---
+
+## 💻 Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will run at `http://localhost:3000`.
