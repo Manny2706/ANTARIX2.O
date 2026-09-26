@@ -48,7 +48,7 @@ To run the complete interconnected project with all microservices:
 git clone https://github.com/Manny2706/ANTARIX2.O.git
 cd ANTARIX2.O
 
-# 2. (Optional) Provide your Groq or OpenRouter API key in .env
+# 2. Provide your Groq api key in .env
 # Edit .env and set GROQ_API_KEY=your_key_here
 
 # 3. Build and launch all services
