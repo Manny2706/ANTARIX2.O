@@ -63,7 +63,7 @@ graph TD
 
     subgraph Intelligence ["AI / ML Engine"]
         LLM["Cloud LLMs\n(Groq / OpenRouter)"]
-        VLM["Local Vision-Language Models\n(Qwen2-VL-7B / ConfigILM)"]
+        VLM["Local Vision-Language Models\n(Qwen2-VL-2B / ConfigILM)"]
         Grounding["Spatial Grounding & Masking\n(Segment Anything Model / BBox Engine)"]
     end
 
