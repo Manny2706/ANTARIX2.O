@@ -236,17 +236,77 @@ graph LR
 
 ---
 
+## 💻 Hardware & System Requirements
+
+Depending on whether you run **ANTARIX 2.O** in **Cloud LLM Mode** (Groq / OpenRouter) or **Local GPU Accelerated VLM Mode** (Qwen2-VL 7B with 4-bit quantization), select the appropriate hardware configuration:
+
+| Component | Minimum Spec (Cloud LLM / CPU Mode) | Recommended Spec (Local GPU VLM Mode) |
+| :--- | :--- | :--- |
+| **Processor (CPU)** | 4-Core x86_64 / ARM64 (Intel i5/i7, Ryzen 5, Apple M1/M2) | 8-Core x86_64 (Intel i7/i9 12th+ Gen, Ryzen 7/9 5000+) |
+| **System Memory (RAM)**| 8 GB RAM (16 GB recommended for multi-container dev) | 16 GB – 32 GB DDR4/DDR5 RAM |
+| **Graphics Card (GPU)**| Not Required (Cloud Groq API / OpenRouter inference) | **NVIDIA GPU with CUDA support** (RTX 3060/4060, RTX 3080/4080, T4, A100) |
+| **GPU VRAM** | N/A | **8 GB VRAM Minimum** (12 GB+ VRAM recommended for 4-bit Qwen2-VL 7B) |
+| **CUDA Driver** | N/A | **CUDA 12.0+** (PyTorch 2.4+ with CUDA 12.4 wheels) |
+| **Storage** | 10 GB Available SSD Storage | 30 GB NVMe SSD Storage (for local VLM weights & geospatial datasets) |
+| **Operating System** | Windows 10/11, Linux (Ubuntu 22.04+), macOS | Windows 11 (PowerShell 7+ / WSL2), Linux (Ubuntu 22.04 LTS) |
+| **Software Stack** | Docker 24+, Node.js 18+, Python 3.11+ | Docker 24+ with NVIDIA Container Toolkit, Python 3.11+, Node.js 18+ |
+
+---
+
 ## 🚀 Quick Start & Deployment Guide
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v24.0+)
 - [Git](https://git-scm.com/)
-- Python 3.11+ (Optional, for native dev)
-- Node.js 20+ (Optional, for native dev)
+- [Python 3.11+](https://www.python.org/)
+- [Node.js 18+](https://nodejs.org/) & npm
 
 ---
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Automated Windows PowerShell Setup (`setup.ps1` — Recommended for Windows & GPU)
+
+For Windows environments with native GPU acceleration, run the automated setup script [`setup.ps1`](file:///c:/Users/mayan/Desktop/ANTARIX-SATQUERY_AI/setup.ps1). It verifies prerequisites, syncs `.env` files across all microservices, sets up Python CUDA 12.4 virtual environments, builds backend Prisma clients, installs frontend packages, and automatically launches all 3 microservices in separate interactive terminal windows!
+
+```powershell
+# 1. Open PowerShell as Administrator or User and set Execution Policy (if restricted)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+
+# 2. Run setup script (installs all dependencies & launches all 3 live service windows)
+.\setup.ps1
+```
+
+#### Script Flags & Customization Switches:
+```powershell
+# Force-recreate Python virtual environment from scratch
+.\setup.ps1 -RecreateVenv
+
+# Overwrite existing .env files from .env.example
+.\setup.ps1 -ForceEnv
+
+# Install dependencies only without auto-launching service terminal windows
+.\setup.ps1 -NoStart
+
+# Combine flags for clean environment reset
+.\setup.ps1 -RecreateVenv -ForceEnv
+```
+
+#### What `setup.ps1` Executes Automatically:
+1. **Prerequisite Check**: Validates Python 3.11+, Node.js 18+, and npm availability in `PATH`.
+2. **Environment Synchronization**: Automatically copies `.env.example` to `.env` across Root, `AGENTIC-AI_GATEWAY`, `BACKEND`, and `frontend`.
+3. **Gateway GPU Environment Setup**:
+   - Creates a dedicated virtual environment in `AGENTIC-AI_GATEWAY/venv`.
+   - Installs PyTorch & Torchvision with **CUDA 12.4 wheels** (`https://download.pytorch.org/whl/cu124`).
+   - Installs core API requirements, vision ML requirements (`transformers`, `accelerate`, `qwen-vl-utils`), `bitsandbytes` (for 4-bit VLM quantization), geospatial libraries (`rasterio`, `pyproj`, `stac`), and installs `satquery` in editable mode.
+4. **Backend Setup**: Installs npm dependencies and generates Prisma Client (`prisma7.config.ts`).
+5. **Frontend Setup**: Installs React + Vite npm packages.
+6. **Live Multi-Window Launch**: Opens 3 distinct PowerShell windows running:
+   - Window 1: `Agentic AI Gateway` (`http://localhost:8000`)
+   - Window 2: `Express Backend` (`http://localhost:7000`)
+   - Window 3: `React Frontend` (`http://localhost:5173` or `:3000`)
+
+---
+
+### Option 2: Docker Compose (Multi-Container Orchestration)
 
 Run the full interconnected stack with a single command:
 
@@ -278,7 +338,7 @@ docker compose down
 
 ---
 
-### Option 2: Unified All-in-One Container
+### Option 3: Unified All-in-One Container
 
 Build and run all services in a single unified container managed by `supervisord`:
 
@@ -289,7 +349,7 @@ docker run -p 3000:80 -p 7000:7000 -p 8000:8000 --env-file .env antarix-unified
 
 ---
 
-### Option 3: Local Developer Setup (Native)
+### Option 4: Manual Step-by-Step Developer Setup (Native)
 
 #### 1. Database Setup
 ```bash
@@ -352,7 +412,7 @@ npm run dev
 | `GROQ_API_KEY` | `""` | Groq API Key for fast LLM inference |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Selected Groq LLM model |
 | `OPENROUTER_API_KEY` | `""` | Optional OpenRouter API Key fallback |
-| `VLM_BACKEND` | `disabled` | Set to `local` for local PyTorch GPU inference or `disabled` for CPU/cloud mode |
+| `VLM_BACKEND` | `local` | Set to `local` for local PyTorch GPU inference or `disabled` for CPU/cloud mode |
 | `JWT_SECRET` | `antarix-super-secret-jwt-key` | Secret key for signing authentication tokens |
 | `SOCKET_KEY` | `bgvpit303269bgwb9nishant` | Shared authorization secret for WebSocket events |
 

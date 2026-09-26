@@ -41,7 +41,7 @@ services:
       GROQ_FALLBACK_MODELS: ${GROQ_FALLBACK_MODELS:-llama-3.3-70b-versatile,llama-3.1-8b-instant}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b}
-      VLM_BACKEND: ${VLM_BACKEND:-disabled}
+      VLM_BACKEND: ${VLM_BACKEND:-local}
       VLM_MODEL_ID: ${VLM_MODEL_ID:-manny2706/satquery-qwen2vl-4bitQuantized}
       VLM_LOAD_ON_STARTUP: ${VLM_LOAD_ON_STARTUP:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
