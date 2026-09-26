@@ -23,7 +23,7 @@ Usage:
     python "scripts/Combined Evaluation Benchmark test.py"
 
     # Run against a running backend server:
-    python "scripts/Combined Evaluation Benchmark test.py" --url http://127.0.0.1:8000/api/v1/analyze
+    python "scripts/Combined Evaluation Benchmark test.py" --url http://0.0.0.0:8000/api/v1/analyze
 
     # Run direct in-process via LangGraph:
     python "scripts/Combined Evaluation Benchmark test.py" --direct
@@ -66,8 +66,8 @@ IMG_T22_SAR = DATA_DIR / "media_1789803071871.jpg"
 IMG_T1_PRE = DATA_DIR / "media_1789803071861.jpg"
 IMG_T2_POST = DATA_DIR / "media_1789803071927.jpg"
 
-DEFAULT_LOCAL_URL = "http://127.0.0.1:8000/api/v1/analyze"
-DEFAULT_STREAM_URL = "http://127.0.0.1:8000/api/v1/analyze/stream"
+DEFAULT_LOCAL_URL = "http://0.0.0.0:8000/api/v1/analyze"
+DEFAULT_STREAM_URL = "http://0.0.0.0:8000/api/v1/analyze/stream"
 BBOX_CAIRO = [31.20, 30.00, 31.35, 30.15]
 
 
