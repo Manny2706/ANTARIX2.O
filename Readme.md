@@ -1,4 +1,4 @@
-# 🛰️ ANTARIX 2.O — Multi-Agent Satellite Imagery AI Platform
+# ANTARIX 2.O — Multi-Agent Satellite Imagery AI Platform
 
 > **Hackathon-Ready Intelligent Earth Observation & Satellite Visual QA Platform**  
 > *Powered by LangGraph Agentic Orchestration, Fine-Tuned Vision-Language Models (Qwen2-VL / ConfigILM), Real-Time SSE/Socket.IO Streaming, and Interactive 2D/3D Geospatial UI.*
@@ -17,7 +17,7 @@
 
 ---
 
-## 🏆 Hackathon Executive Summary
+## Hackathon Executive Summary
 
 **ANTARIX 2.O** solves a critical challenge in modern Earth Observation (EO): **extracting rapid, multi-modal, and spatial insights from high-resolution optical and Synthetic Aperture Radar (SAR) satellite imagery without requiring specialized GIS expertise.**
 
@@ -25,24 +25,24 @@ Traditional satellite analysis relies on manual photo-interpretation, fragmented
 
 ---
 
-## 💡 Key Innovations & Core Features
+## Key Innovations & Core Features
 
-- 🧠 **Autonomous Multi-Agent Orchestration (LangGraph)**:
+- **Autonomous Multi-Agent Orchestration (LangGraph)**:
   Uses a dynamic **Supervisor-Specialist pattern** with multi-step reasoning, evidence aggregation, and self-correcting **Verification & Reflection loops**.
-- 🛰️ **Multi-Spectral & Multi-Temporal Analysis**:
+- **Multi-Spectral & Multi-Temporal Analysis**:
   Supports single-frame visual question answering, bi-temporal change detection ($T_1$ vs $T_2$), optical-SAR cross-modal reasoning, and GIS spatial grounding.
-- 🎯 **Fine-Tuned Satellite Vision Models**:
+- **Fine-Tuned Satellite Vision Models**:
   Integrates custom fine-tuned **Qwen2-VL** and **ConfigILM** models trained on **BigEarthNet Sentinel-1 (SAR)** and **Sentinel-2 (Optical)** datasets using PEFT/LoRA and 4-bit quantization (`bitsandbytes`).
-- ⚡ **Real-Time SSE & WebSocket Event Streaming**:
+- **Real-Time SSE & WebSocket Event Streaming**:
   Streams node execution steps, intermediate reasoning traces, and grounding outputs live to the user interface via Server-Sent Events (SSE) and Socket.IO.
-- 🗺️ **Interactive 2D/3D Geospatial UI**:
+- **Interactive 2D/3D Geospatial UI**:
   React 19 frontend featuring dual Leaflet map layers, dynamic spatial bounding-box overlay selection, layer controls, and 3D Three.js visualizers.
-- 🐳 **Production-Grade Microservices Architecture**:
+- **Production-Grade Microservices Architecture**:
   Fully containerized stack powered by Docker Compose, automated database synchronization via Prisma ORM v7, and FastAPI OpenAPI documentation.
 
 ---
 
-## 🏗️ System Architecture & Mermaid Diagrams
+## System Architecture & Mermaid Diagrams
 
 ### 1. High-Level System Microservices Architecture
 
@@ -225,18 +225,18 @@ graph LR
 
 ---
 
-## 🎯 Hackathon Track Alignment
+## Hackathon Track Alignment
 
 | Track / Category | Features & Alignment |
 | :--- | :--- |
-| 🤖 **AI & Agentic Systems** | Autonomous multi-agent LangGraph workflow featuring supervisor routing, specialist execution, verification, and reflection loops. |
-| 🛰️ **Geospatial & Earth Observation** | Multi-spectral Sentinel-2 & Sentinel-1 SAR imagery ingestion, bi-temporal change detection, bounding box spatial grounding, dynamic Leaflet & 3D canvas map integration. |
-| ⚡ **Real-Time Interactive Apps** | Server-Sent Events (SSE) streaming for live agent reasoning step-by-step updates and real-time Socket.IO synchronization. |
-| 🌍 **Disaster Response & Urban Planning** | Rapid identification of flood areas, deforestation zones, urban growth, and infrastructure damage assessment. |
+| **AI & Agentic Systems** | Autonomous multi-agent LangGraph workflow featuring supervisor routing, specialist execution, verification, and reflection loops. |
+| **Geospatial & Earth Observation** | Multi-spectral Sentinel-2 & Sentinel-1 SAR imagery ingestion, bi-temporal change detection, bounding box spatial grounding, dynamic Leaflet & 3D canvas map integration. |
+| **Real-Time Interactive Apps** | Server-Sent Events (SSE) streaming for live agent reasoning step-by-step updates and real-time Socket.IO synchronization. |
+| **Disaster Response & Urban Planning** | Rapid identification of flood areas, deforestation zones, urban growth, and infrastructure damage assessment. |
 
 ---
 
-## 💻 Hardware & System Requirements
+## Hardware & System Requirements
 
 Depending on whether you run **ANTARIX 2.O** in **Cloud LLM Mode** (Groq / OpenRouter) or **Local GPU Accelerated VLM Mode** (Qwen2-VL 7B with 4-bit quantization), select the appropriate hardware configuration:
 
@@ -253,7 +253,7 @@ Depending on whether you run **ANTARIX 2.O** in **Cloud LLM Mode** (Groq / OpenR
 
 ---
 
-## 🚀 Quick Start & Deployment Guide
+## Quick Start & Deployment Guide
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v24.0+)
@@ -386,7 +386,7 @@ npm run dev
 
 ---
 
-## 🌐 Service Access Points & Health Checks
+## Service Access Points & Health Checks
 
 | Service | Host URL | Description | Health Endpoint |
 | :--- | :--- | :--- | :--- |
@@ -398,7 +398,7 @@ npm run dev
 
 ---
 
-## 🔑 Environment Variables Reference (`.env`)
+## Environment Variables Reference (`.env`)
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
@@ -418,7 +418,7 @@ npm run dev
 
 ---
 
-## 🔌 API & Event Streaming Specification
+## API & Event Streaming Specification
 
 ### 1. Synchronous Analysis Endpoint (`POST /api/v1/analyze`)
 Sends a natural language query alongside satellite imagery files or bounding box coordinates.
@@ -458,7 +458,7 @@ data: {
 
 ---
 
-## 🧠 Model Training & Fine-Tuning Artifacts
+## Model Training & Fine-Tuning Artifacts
 
 The system includes fine-tuning workflows in [`MODEL_TRAINING/satquery.ipynb`](file:///c:/Users/mayan/Desktop/ANTARIX-SATQUERY_AI/MODEL_TRAINING/satquery.ipynb):
 
@@ -472,7 +472,7 @@ The system includes fine-tuning workflows in [`MODEL_TRAINING/satquery.ipynb`](f
 
 ---
 
-## 🎬 Hackathon Demo Walkthrough & Presentation Guide
+## Hackathon Demo Walkthrough & Presentation Guide
 
 For hackathon judges and live presentations, follow this 5-step demo script:
 
@@ -489,7 +489,7 @@ For hackathon judges and live presentations, follow this 5-step demo script:
 
 ---
 
-## 📁 Project Directory Structure
+## Project Directory Structure
 
 ```text
 ANTARIX-SATQUERY_AI/
@@ -524,15 +524,15 @@ ANTARIX-SATQUERY_AI/
 
 ---
 
-## 🔮 Vision & Future Roadmap
+## Vision & Future Roadmap
 
-- 🛰️ **Direct Copernicus & Sentinel Hub API Ingestion**: Live streaming satellite data directly into agent memory.
-- 🌐 **SAR Multi-Polarization Polarization Decomposition**: Enhanced flood and canopy penetration via polarimetric SAR analysis.
-- ⚡ **Edge AI Nanosatellite Deployment**: Quantized model export for on-satellite inference via ONNX and TensorRT.
-- 🤝 **Collaborative Multi-User GIS Rooms**: Real-time collaborative annotation powered by Socket.IO.
+- **Direct Copernicus & Sentinel Hub API Ingestion**: Live streaming satellite data directly into agent memory.
+- **SAR Multi-Polarization Polarization Decomposition**: Enhanced flood and canopy penetration via polarimetric SAR analysis.
+- **Edge AI Nanosatellite Deployment**: Quantized model export for on-satellite inference via ONNX and TensorRT.
+- **Collaborative Multi-User GIS Rooms**: Real-time collaborative annotation powered by Socket.IO.
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ for Earth Observation, Geospatial AI, and Hackathons worldwide.</b>
+  <b>Built for Earth Observation, Geospatial AI, and Hackathons worldwide.</b>
 </p>
